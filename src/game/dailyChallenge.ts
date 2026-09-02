@@ -1,0 +1,394 @@
+import { ALL_MAPS, DIFFICULTIES } from './maps';
+import { firestore } from './firestoreLazy';
+import { TOWERS } from './towers';
+import type { DamageType, FireStyle, TowerDef, WaveGroup } from './types';
+
+export type DailyArsenalId = 'fixedPool' | 'banDamage' | 'tierCap4' | 'noSupport' | 'budgetBuild';
+export type DailyTwistId = 'fogProtocol' | 'rushHour' | 'glassCannon' | 'thrifty' | 'veteranHulls';
+export type DailyBoonId = 'salvageCache' | 'abilityRecharge' | 'doublePickups';
+
+export interface DailyArsenalConstraint {
+  id: DailyArsenalId;
+  name: string;
+  short: string;
+  desc: string;
+  towerIds?: string[];
+  bannedDamageType?: DamageType;
+  bannedStyle?: FireStyle;
+  upgradeTierCap?: number;
+  costMultiplier?: number;
+}
+
+export interface DailyTwist {
+  id: DailyTwistId;
+  name: string;
+  short: string;
+  desc: string;
+  waveGapMultiplier?: number;
+  towerDamageMultiplier?: number;
+  startingLivesMultiplier?: number;
+  killRewardMultiplier?: number;
+  waveBonusMultiplier?: number;
+  sensorBlackout?: boolean;
+  enemyHpMultiplier?: number;
+  enemyDamageTakenMultiplier?: number;
+}
+
+export interface DailyBoon {
+  id: DailyBoonId;
+  name: string;
+  short: string;
+  desc: string;
+  creditCacheWave?: number;
+  creditCacheAmount?: number;
+  freeAbilityRecharge?: boolean;
+  pickupDropMultiplier?: number;
+}
+
+export interface DailyChallenge {
+  id: string;
+  dateKey: string;
+  mapId: string;
+  diffId: string;
+  title: string;
+  arsenal: DailyArsenalConstraint;
+  twist: DailyTwist;
+  boon: DailyBoon;
+  rules: string[];
+  /**
+   * Marks a hand-authored "special edition" challenge (not a seeded daily). Special
+   * challenges carry a fixed, non-date id, so they never submit to the date-keyed online
+   * daily boards (client + server both reject a non-`daily-YYYY-MM-DD` id) — they are
+   * local-ranked only. Currently only THE YAKKOB (`'yakkob'`) uses this.
+   */
+  special?: 'yakkob';
+}
+
+export interface DailyOverrideDoc {
+  date: string;
+  arsenalId?: DailyArsenalId;
+  twistId?: DailyTwistId;
+  boonId?: DailyBoonId;
+  note?: string;
+}
+
+const DAMAGE_TYPES: DamageType[] = ['kinetic', 'energy', 'explosive', 'cryo'];
+const FIXED_POOL_CORE = ['pulse', 'emp'];
+const FIXED_POOL_ROTATION = TOWERS
+  .map((tower) => tower.id)
+  .filter((id) => !FIXED_POOL_CORE.includes(id));
+
+export const DAILY_ARSENAL_IDS: DailyArsenalId[] = ['fixedPool', 'banDamage', 'tierCap4', 'noSupport', 'budgetBuild'];
+export const DAILY_TWIST_IDS: DailyTwistId[] = ['fogProtocol', 'rushHour', 'glassCannon', 'thrifty', 'veteranHulls'];
+export const DAILY_BOON_IDS: DailyBoonId[] = ['salvageCache', 'abilityRecharge', 'doublePickups'];
+
+const TWISTS: Omit<DailyTwist, 'desc'>[] = [
+  { id: 'fogProtocol', name: '안개 프로토콜', short: 'FOG', sensorBlackout: true },
+  { id: 'rushHour', name: '러시 아워', short: 'RUSH', waveGapMultiplier: 0.6 },
+  { id: 'glassCannon', name: '유리 대포', short: 'GLASS', towerDamageMultiplier: 1.3, startingLivesMultiplier: 0.6 },
+  { id: 'thrifty', name: '절약', short: 'THRIFT', killRewardMultiplier: 0.7, waveBonusMultiplier: 1.5 },
+  { id: 'veteranHulls', name: '베테랑 함선', short: 'VETERAN', enemyHpMultiplier: 1.12, enemyDamageTakenMultiplier: 0.92 },
+];
+
+const BOONS: DailyBoon[] = [
+  {
+    id: 'salvageCache',
+    name: '인양물 저장고',
+    short: 'CACHE',
+    desc: '웨이브 5 이전에 봉인된 저장고가 열리며 +350 크레딧을 제공한다.',
+    creditCacheWave: 5,
+    creditCacheAmount: 350,
+  },
+  {
+    id: 'abilityRecharge',
+    name: '긴급 재충전',
+    short: 'RECHARGE',
+    desc: '런 당 한 번, 사령관 능력 하나가 재사용 대기를 무시하고 사용할 수 있다.',
+    freeAbilityRecharge: true,
+  },
+  {
+    id: 'doublePickups',
+    name: '이중 드롭',
+    short: 'DROPS',
+    desc: '전투 픽업이 두 배 더 자주 드롭된다.',
+    pickupDropMultiplier: 2,
+  },
+];
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+let overrideLoadedForDate = '';
+let cachedOverride: DailyOverrideDoc | null = null;
+let overrideLoadDate = '';
+let overrideLoadPromise: Promise<void> | null = null;
+
+export function dailyChallenge(now = new Date()): DailyChallenge {
+  const dateKey = toDateKey(now);
+  return dailyChallengeForDate(dateKey, cachedOverride?.date === dateKey ? cachedOverride : null);
+}
+
+// Fog Protocol makes cloaked hulls detectable only by support-style aura
+// detectors or rank-3+ sensor towers. An arsenal that removes support towers
+// entirely turns that twist into a soft-lock (2026-W27 shipped No Support +
+// Fog Protocol + Thrifty — functionally unwinnable). These guards keep the
+// seeded rolls fair; client and functions share this code, so the canonical
+// challenge stays consistent.
+export function arsenalBansSupport(arsenal: DailyArsenalConstraint): boolean {
+  if (arsenal.bannedStyle === 'support') return true;
+  if (arsenal.towerIds) {
+    return !arsenal.towerIds.some((id) => TOWERS.find((t) => t.id === id)?.style === 'support');
+  }
+  return false;
+}
+
+export function fogCompatibleTwistId(twistId: DailyTwistId, arsenal: DailyArsenalConstraint): DailyTwistId {
+  return twistId === 'fogProtocol' && arsenalBansSupport(arsenal) ? 'rushHour' : twistId;
+}
+
+export function dailyChallengeForDate(dateKey: string, override?: DailyOverrideDoc | null): DailyChallenge {
+  const cleanDate = DATE_RE.test(dateKey) ? dateKey : toDateKey(new Date());
+  const seed = hash(cleanDate);
+  const map = ALL_MAPS[seed % ALL_MAPS.length];
+  const diffPool = DIFFICULTIES.filter((d) => d.id !== 'easy');
+  const diff = diffPool[Math.floor(seed / 7) % diffPool.length] ?? DIFFICULTIES[1];
+  const cleanOverride = override?.date === cleanDate ? override : null;
+  const arsenal = buildArsenalForId(seed, cleanOverride?.arsenalId ?? DAILY_ARSENAL_IDS[seed % DAILY_ARSENAL_IDS.length]);
+  const twist = buildTwistForId(cleanOverride?.twistId
+    ?? fogCompatibleTwistId(DAILY_TWIST_IDS[Math.floor(seed / 17) % DAILY_TWIST_IDS.length], arsenal));
+  const boon = BOONS.find((item) => item.id === cleanOverride?.boonId)
+    ?? BOONS[Math.floor(seed / 23) % BOONS.length];
+  const title = `데일리 챌린지 ${cleanDate.slice(5)}: ${map.name}`;
+  return {
+    id: `daily-${cleanDate}`,
+    dateKey: cleanDate,
+    mapId: map.id,
+    diffId: diff.id,
+    title,
+    arsenal,
+    twist,
+    boon,
+    rules: [
+      arsenal.desc,
+      twist.desc,
+      boon.desc,
+      '일반 프로토콜의 현금과 코어로 웨이브 1에서 시작합니다. 웨이브, 그 다음 격퇴한 함선 수로 순위가 매겨집니다.',
+    ],
+  };
+}
+
+export function dailyChallengeForId(id: string): DailyChallenge | null {
+  const match = /^daily-(\d{4}-\d{2}-\d{2})$/.exec(id);
+  if (!match) return null;
+  return dailyChallengeForDate(match[1], cachedOverride?.date === match[1] ? cachedOverride : null);
+}
+
+export function dailyModifierNames(challenge: DailyChallenge): string[] {
+  return [challenge.arsenal.name, challenge.twist.name, challenge.boon.name];
+}
+
+export function dailyChallengeSignature(challenge: DailyChallenge): string {
+  return [
+    challenge.id,
+    challenge.mapId,
+    challenge.diffId,
+    challenge.arsenal.id,
+    challenge.arsenal.name,
+    challenge.twist.id,
+    challenge.boon.id,
+  ].join('|');
+}
+
+export function dailyArsenalCatalog(dateKey: string): DailyArsenalConstraint[] {
+  const seed = hash(DATE_RE.test(dateKey) ? dateKey : toDateKey(new Date()));
+  return DAILY_ARSENAL_IDS.map((id) => buildArsenalForId(seed, id));
+}
+
+export function dailyTwistCatalog(): DailyTwist[] {
+  return DAILY_TWIST_IDS.map((id) => buildTwistForId(id));
+}
+
+export function dailyBoonCatalog(): DailyBoon[] {
+  return DAILY_BOON_IDS.map((id) => BOONS.find((boon) => boon.id === id)!).filter(Boolean);
+}
+
+export function sanitizeDailyOverrideDoc(raw: unknown): DailyOverrideDoc | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const data = raw as Record<string, unknown>;
+  const date = typeof data.date === 'string' && DATE_RE.test(data.date) ? data.date : '';
+  if (!date) return null;
+  const doc: DailyOverrideDoc = { date };
+  if (typeof data.arsenalId === 'string' && DAILY_ARSENAL_IDS.includes(data.arsenalId as DailyArsenalId)) {
+    doc.arsenalId = data.arsenalId as DailyArsenalId;
+  }
+  if (typeof data.twistId === 'string' && DAILY_TWIST_IDS.includes(data.twistId as DailyTwistId)) {
+    doc.twistId = data.twistId as DailyTwistId;
+  }
+  if (typeof data.boonId === 'string' && DAILY_BOON_IDS.includes(data.boonId as DailyBoonId)) {
+    doc.boonId = data.boonId as DailyBoonId;
+  }
+  if (typeof data.note === 'string') doc.note = data.note.slice(0, 240);
+  return doc;
+}
+
+export function setDailyOverrideDoc(raw: unknown): void {
+  cachedOverride = sanitizeDailyOverrideDoc(raw);
+  overrideLoadedForDate = cachedOverride?.date ?? overrideLoadedForDate;
+}
+
+export function getDailyOverrideDoc(): DailyOverrideDoc | null {
+  return cachedOverride ? { ...cachedOverride } : null;
+}
+
+export async function loadRemoteDailyOverride(now = new Date()): Promise<void> {
+  const dateKey = toDateKey(now);
+  if (overrideLoadedForDate === dateKey) return;
+  if (overrideLoadDate === dateKey && overrideLoadPromise) return overrideLoadPromise;
+  overrideLoadDate = dateKey;
+  overrideLoadPromise = (async () => {
+    try {
+      const { fs, db } = await firestore();
+      const snap = await Promise.race([
+        fs.getDoc(fs.doc(db, 'config', 'dailyOverride')),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+      ]);
+      const doc = snap.exists() ? sanitizeDailyOverrideDoc(snap.data()) : null;
+      cachedOverride = doc?.date === dateKey ? doc : null;
+    } catch {
+      cachedOverride = null;
+    } finally {
+      overrideLoadedForDate = dateKey;
+      overrideLoadPromise = null;
+    }
+  })();
+  return overrideLoadPromise;
+}
+
+export function dailyAllowsTower(challenge: DailyChallenge | null, def: TowerDef): boolean {
+  if (!challenge) return true;
+  const arsenal = challenge.arsenal;
+  if (arsenal.towerIds && !arsenal.towerIds.includes(def.id)) return false;
+  if (arsenal.bannedStyle && def.style === arsenal.bannedStyle) return false;
+  if (arsenal.bannedDamageType && towerUsesDamage(def, arsenal.bannedDamageType)) return false;
+  return true;
+}
+
+export function dailyTowerIds(challenge: DailyChallenge | null): string[] | null {
+  if (!challenge) return null;
+  return TOWERS.filter((tower) => dailyAllowsTower(challenge, tower)).map((tower) => tower.id);
+}
+
+export function applyDailyWaveTwist(challenge: DailyChallenge | null, wave: WaveGroup[]): WaveGroup[] {
+  if (!challenge) return wave;
+  let groups = wave.map((group) => ({ ...group }));
+  if (challenge.twist.waveGapMultiplier) {
+    groups = groups.map((group) => ({ ...group, gap: Math.max(0.05, group.gap * challenge.twist.waveGapMultiplier!) }));
+  }
+  return groups;
+}
+
+export function buildArsenalForId(seed: number, id: DailyArsenalId): DailyArsenalConstraint {
+  if (id === 'fixedPool') {
+    const towerIds = [...FIXED_POOL_CORE, ...pickMany(FIXED_POOL_ROTATION, seed + 47, 4)];
+    return {
+      id: 'fixedPool',
+      name: '고정 무기고',
+      short: 'POOL',
+      desc: `오늘은 ${towerIds.length}개의 고정된 무기만 사용 가능하다.`,
+      towerIds,
+    };
+  }
+  if (id === 'banDamage') {
+    const bannedDamageType = DAMAGE_TYPES[Math.floor(seed / 11) % DAMAGE_TYPES.length];
+    return {
+      id: 'banDamage',
+      name: `${labelDamage(bannedDamageType)} 금지`,
+      short: 'BAN',
+      desc: `${labelDamage(bannedDamageType)} 피해 무기는 오늘 오프라인이다.`,
+      bannedDamageType,
+    };
+  }
+  if (id === 'tierCap4') {
+    return {
+      id: 'tierCap4',
+      name: '티어 4 캡',
+      short: 'T4',
+      desc: '업그레이드 트랙은 4티어에서 멈춘다. 보너스 티어는 잠긴다.',
+      upgradeTierCap: 4,
+    };
+  }
+  if (id === 'noSupport') {
+    return {
+      id: 'noSupport',
+      name: '지원 금지',
+      short: 'NO SUP',
+      desc: '지원 타워는 오늘의 그리드에서 금지된다.',
+      bannedStyle: 'support',
+    };
+  }
+  return {
+    id: 'budgetBuild',
+    name: '예산 건설',
+    short: 'BUDGET',
+    desc: '모든 타워와 업그레이드 비용이 25% 증가한다.',
+    costMultiplier: 1.25,
+  };
+}
+
+export function buildTwistForId(id: DailyTwistId): DailyTwist {
+  const base = TWISTS.find((twist) => twist.id === id) ?? TWISTS[0];
+  if (base.id === 'fogProtocol') {
+    return { ...base, desc: '영구적인 센서 정전: 위상 은신 함선을 감지하려면 랭크 3 감지 타워가 필요하다.' };
+  }
+  if (base.id === 'rushHour') {
+    return { ...base, desc: '웨이브 간격이 40% 압축된다.' };
+  }
+  if (base.id === 'glassCannon') {
+    return { ...base, desc: '타워가 +30% 더 강한 피해를 주지만, 원자로 코어가 60%에서 시작한다.' };
+  }
+  if (base.id === 'thrifty') {
+    return { ...base, desc: '킬 보상이 30% 감소하는 대신, 웨이브 보너스는 +50% 지급된다.' };
+  }
+  return { ...base, desc: '적 함선이 더 두꺼운 장갑을 갖추고 들어오는 피해에 더 강해진다.' };
+}
+
+function toDateKey(now: Date): string {
+  return now.toISOString().slice(0, 10);
+}
+
+function towerUsesDamage(def: TowerDef, type: DamageType): boolean {
+  if (def.style === 'support') return false;
+  if (def.base.damageType === type && def.base.damage > 0) return true;
+  return def.tracks.some((track) => track.upgrades.some((upgrade) => {
+    const stats = { ...def.base };
+    upgrade.apply(stats);
+    return stats.damageType === type && stats.damage > 0;
+  }));
+}
+
+function labelDamage(type: DamageType): string {
+  // Preserve identifier semantics — the label is consumed only by Korean UI now,
+  // and the underlying type enum still flows through unchanged.
+  if (type === 'kinetic') return '운동';
+  if (type === 'energy') return '에너지';
+  if (type === 'explosive') return '폭발';
+  return '크라이오';
+}
+
+function pickMany<T>(items: T[], seed: number, count: number): T[] {
+  const pool = [...items];
+  const out: T[] = [];
+  let s = seed;
+  while (pool.length && out.length < count) {
+    s = Math.imul(s ^ 0x9e3779b9, 1664525) + 1013904223;
+    out.push(pool.splice(Math.abs(s) % pool.length, 1)[0]);
+  }
+  return out;
+}
+
+function hash(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}

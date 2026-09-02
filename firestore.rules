@@ -1,0 +1,758 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in [
+          '5329548871.eg@gmail.com'
+        ];
+    }
+
+    // Player writes require Firebase Anonymous Auth. This is the flood gate:
+    // without it, any REST client holding the public web config could write
+    // 1MB replay docs in a loop and burn the daily write quota in minutes.
+    function isPlayer() {
+      return request.auth != null;
+    }
+
+    function isValidDailyBoard(daily) {
+      return daily.matches('^daily-[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function isValidWeeklyBoard(weekly) {
+      return weekly.matches('^weekly-[0-9]{4}-W[0-9]{2}$');
+    }
+
+    function isValidDailyArsenalId(id) {
+      return id in ['fixedPool', 'banDamage', 'tierCap4', 'noSupport', 'budgetBuild'];
+    }
+
+    function isValidDailyTwistId(id) {
+      return id in ['fogProtocol', 'rushHour', 'glassCannon', 'thrifty', 'veteranHulls'];
+    }
+
+    function isValidDailyBoonId(id) {
+      return id in ['salvageCache', 'abilityRecharge', 'doublePickups'];
+    }
+
+    function isValidDailyOverrideDoc(data) {
+      return data is map
+        && data.keys().hasAll(['date'])
+        && data.keys().hasOnly(['date', 'arsenalId', 'twistId', 'boonId', 'note'])
+        && data.date is string && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && (!('arsenalId' in data) || (data.arsenalId is string && isValidDailyArsenalId(data.arsenalId)))
+        && (!('twistId' in data) || (data.twistId is string && isValidDailyTwistId(data.twistId)))
+        && (!('boonId' in data) || (data.boonId is string && isValidDailyBoonId(data.boonId)))
+        && (!('note' in data) || (data.note is string && data.note.size() <= 240));
+    }
+
+    function isValidWeeklyOverrideDoc(data) {
+      return data is map
+        && data.keys().hasAll(['week'])
+        && data.keys().hasOnly(['week', 'arsenalId', 'twistIds', 'boonId', 'note'])
+        && data.week is string && isValidWeeklyBoard(data.week)
+        && (!('arsenalId' in data) || (data.arsenalId is string && isValidDailyArsenalId(data.arsenalId)))
+        && (!('twistIds' in data) || (data.twistIds is list
+          && data.twistIds.size() == 3
+          && data.twistIds[0] is string && isValidDailyTwistId(data.twistIds[0])
+          && data.twistIds[1] is string && isValidDailyTwistId(data.twistIds[1])
+          && data.twistIds[2] is string && isValidDailyTwistId(data.twistIds[2])
+          && data.twistIds[0] != data.twistIds[1]
+          && data.twistIds[0] != data.twistIds[2]
+          && data.twistIds[1] != data.twistIds[2]))
+        && (!('boonId' in data) || (data.boonId is string && isValidDailyBoonId(data.boonId)))
+        && (!('note' in data) || (data.note is string && data.note.size() <= 240));
+    }
+
+    function isValidWeeklyGauntletDoc(data) {
+      return data is map
+        && data.keys().hasAll(['week', 'runId', 'callsign', 'map', 'diff', 'seed', 'wave', 'kills'])
+        && data.keys().hasOnly(['week', 'runId', 'callsign', 'map', 'diff', 'seed', 'wave', 'kills', 'crownedAt', 'crownedBy', 'source'])
+        && data.week is string && isValidWeeklyBoard(data.week)
+        && data.runId is string && isValidRunId(data.runId)
+        && data.callsign is string && data.callsign.size() <= 20
+        && data.map is string && isValidMapId(data.map)
+        && data.diff is string && isValidDiffId(data.diff)
+        && data.seed is int && data.seed >= 0
+        && data.wave is int && data.wave >= 0 && data.wave <= 10000
+        && data.kills is int && data.kills >= 0 && data.kills < 10000000
+        && (!('crownedAt' in data) || (data.crownedAt is int && data.crownedAt > 0))
+        && (!('crownedBy' in data) || (data.crownedBy is string && data.crownedBy.size() <= 120))
+        && (!('source' in data) || (data.source is string && data.source.size() <= 30));
+    }
+
+    function isValidGauntletProtocolSetup(data) {
+      return data is map
+        && data.keys().hasAll(['week', 'gauntletRunId', 'leg', 'route', 'startingCredits', 'startingCores', 'relicIds'])
+        && data.keys().hasOnly(['week', 'gauntletRunId', 'leg', 'route', 'startingCredits', 'startingCores', 'relicIds', 'draftOfferIds', 'pickedRelicId', 'previousRunId', 'nextRunId'])
+        && data.week is string && isValidWeeklyBoard(data.week)
+        && data.gauntletRunId is string && data.gauntletRunId.matches('^gp_[A-Za-z0-9_-]{8,80}$')
+        && data.leg is int && data.leg >= 1 && data.leg <= 3
+        && data.route is list && data.route.size() == 3
+        && data.route[0] is string && data.route[0].size() <= 30
+        && data.route[1] is string && data.route[1].size() <= 30
+        && data.route[2] is string && data.route[2].size() <= 30
+        && data.startingCredits is int && data.startingCredits >= 0 && data.startingCredits < 100000000
+        && data.startingCores is int && data.startingCores >= 1 && data.startingCores < 1000000
+        && data.relicIds is list && data.relicIds.size() <= 2
+        && (!('draftOfferIds' in data) || (data.draftOfferIds is list && data.draftOfferIds.size() <= 3))
+        && (!('pickedRelicId' in data) || data.pickedRelicId is string)
+        && (!('previousRunId' in data) || (data.previousRunId is string && isValidRunId(data.previousRunId)))
+        && (!('nextRunId' in data) || (data.nextRunId is string && isValidRunId(data.nextRunId)));
+    }
+
+    function isValidMapId(map) {
+      return map in ['orbital', 'carousel', 'reactor', 'splice', 'mobius', 'mirror', 'hyperlane', 'blackout', 'throat', 'foundry', 'umbral', 'cinder'];
+    }
+
+    function isValidDiffId(diff) {
+      return diff in ['easy', 'normal', 'hard', 'extinction'];
+    }
+
+    function isValidRunId(runId) {
+      return runId.matches('^r_[A-Za-z0-9_-]{8,80}$');
+    }
+
+    function isValidUid(uid) {
+      return uid.matches('^[A-Za-z0-9_-]{6,40}$');
+    }
+
+    function isBalanceMult(n) {
+      return n is number && n >= 0.25 && n <= 4;
+    }
+
+    function isBalanceWave(n) {
+      return n is number && n >= 1 && n <= 200 && n == int(n);
+    }
+
+    function isValidBalanceIncome(x) {
+      return x is map
+        && x.keys().hasOnly(['killMult', 'waveBonusMult'])
+        && (!('killMult' in x) || isBalanceMult(x.killMult))
+        && (!('waveBonusMult' in x) || isBalanceMult(x.waveBonusMult));
+    }
+
+    function isValidBalanceGlobal(x) {
+      return x is map
+        && x.keys().hasOnly(['abilityCooldownMult'])
+        && (!('abilityCooldownMult' in x) || isBalanceMult(x.abilityCooldownMult));
+    }
+
+    function isValidBalanceDiff(x) {
+      return x is map
+        && x.keys().hasOnly(['hpMult', 'lateScale', 'costMult', 'cashMult', 'livesMult', 'earlyWaveCashMult', 'earlyWaveCashStart', 'earlyWaveCashEnd'])
+        && (!('hpMult' in x) || isBalanceMult(x.hpMult))
+        && (!('lateScale' in x) || isBalanceMult(x.lateScale))
+        && (!('costMult' in x) || isBalanceMult(x.costMult))
+        && (!('cashMult' in x) || isBalanceMult(x.cashMult))
+        && (!('livesMult' in x) || isBalanceMult(x.livesMult))
+        && (!('earlyWaveCashMult' in x) || isBalanceMult(x.earlyWaveCashMult))
+        && (!('earlyWaveCashStart' in x) || isBalanceWave(x.earlyWaveCashStart))
+        && (!('earlyWaveCashEnd' in x) || isBalanceWave(x.earlyWaveCashEnd));
+    }
+
+    function isValidBalanceEnemy(x) {
+      return x is map
+        && x.keys().hasOnly(['hpMult', 'rewardMult', 'speedMult'])
+        && (!('hpMult' in x) || isBalanceMult(x.hpMult))
+        && (!('rewardMult' in x) || isBalanceMult(x.rewardMult))
+        && (!('speedMult' in x) || isBalanceMult(x.speedMult));
+    }
+
+    function isValidBalanceTower(x) {
+      return x is map
+        && x.keys().hasOnly(['costMult', 'damageMult', 'rangeMult', 'fireRateMult', 'projectileSpeedMult', 'splashMult', 'slowMult', 'burnMult'])
+        && (!('costMult' in x) || isBalanceMult(x.costMult))
+        && (!('damageMult' in x) || isBalanceMult(x.damageMult))
+        && (!('rangeMult' in x) || isBalanceMult(x.rangeMult))
+        && (!('fireRateMult' in x) || isBalanceMult(x.fireRateMult))
+        && (!('projectileSpeedMult' in x) || isBalanceMult(x.projectileSpeedMult))
+        && (!('splashMult' in x) || isBalanceMult(x.splashMult))
+        && (!('slowMult' in x) || isBalanceMult(x.slowMult))
+        && (!('burnMult' in x) || isBalanceMult(x.burnMult));
+    }
+
+    function isValidBalanceDiffs(x) {
+      return x is map
+        && x.keys().hasOnly(['easy', 'normal', 'hard', 'extinction'])
+        && (!('easy' in x) || isValidBalanceDiff(x.easy))
+        && (!('normal' in x) || isValidBalanceDiff(x.normal))
+        && (!('hard' in x) || isValidBalanceDiff(x.hard))
+        && (!('extinction' in x) || isValidBalanceDiff(x.extinction));
+    }
+
+    function isValidBalanceEnemies(x) {
+      return x is map
+        && x.keys().hasOnly(['scout', 'raider', 'stinger', 'phantom', 'wraith', 'shade', 'prism', 'aegis', 'chrono', 'vortex', 'juggernaut', 'seraph', 'titan', 'leviathan', 'mirror', 'wisp', 'gorge', 'lampblack', 'umbra'])
+        && (!('scout' in x) || isValidBalanceEnemy(x.scout))
+        && (!('raider' in x) || isValidBalanceEnemy(x.raider))
+        && (!('stinger' in x) || isValidBalanceEnemy(x.stinger))
+        && (!('phantom' in x) || isValidBalanceEnemy(x.phantom))
+        && (!('wraith' in x) || isValidBalanceEnemy(x.wraith))
+        && (!('shade' in x) || isValidBalanceEnemy(x.shade))
+        && (!('prism' in x) || isValidBalanceEnemy(x.prism))
+        && (!('aegis' in x) || isValidBalanceEnemy(x.aegis))
+        && (!('chrono' in x) || isValidBalanceEnemy(x.chrono))
+        && (!('vortex' in x) || isValidBalanceEnemy(x.vortex))
+        && (!('juggernaut' in x) || isValidBalanceEnemy(x.juggernaut))
+        && (!('seraph' in x) || isValidBalanceEnemy(x.seraph))
+        && (!('titan' in x) || isValidBalanceEnemy(x.titan))
+        && (!('leviathan' in x) || isValidBalanceEnemy(x.leviathan))
+        && (!('mirror' in x) || isValidBalanceEnemy(x.mirror))
+        && (!('wisp' in x) || isValidBalanceEnemy(x.wisp))
+        && (!('gorge' in x) || isValidBalanceEnemy(x.gorge))
+        && (!('lampblack' in x) || isValidBalanceEnemy(x.lampblack))
+        && (!('umbra' in x) || isValidBalanceEnemy(x.umbra));
+    }
+
+    function isValidBalanceTowers(x) {
+      return x is map
+        && x.keys().hasOnly(['pulse', 'tesla', 'cryo', 'rail', 'missile', 'drone', 'emp', 'cantor', 'prismarr', 'locust', 'requiem', 'watchfire', 'abyss', 'ember', 'anchor', 'sunspear', 'siphon', 'lure', 'flak', 'cinder', 'gauss'])
+        && (!('pulse' in x) || isValidBalanceTower(x.pulse))
+        && (!('tesla' in x) || isValidBalanceTower(x.tesla))
+        && (!('cryo' in x) || isValidBalanceTower(x.cryo))
+        && (!('rail' in x) || isValidBalanceTower(x.rail))
+        && (!('missile' in x) || isValidBalanceTower(x.missile))
+        && (!('drone' in x) || isValidBalanceTower(x.drone))
+        && (!('emp' in x) || isValidBalanceTower(x.emp))
+        && (!('cantor' in x) || isValidBalanceTower(x.cantor))
+        && (!('prismarr' in x) || isValidBalanceTower(x.prismarr))
+        && (!('locust' in x) || isValidBalanceTower(x.locust))
+        && (!('requiem' in x) || isValidBalanceTower(x.requiem))
+        && (!('watchfire' in x) || isValidBalanceTower(x.watchfire))
+        && (!('abyss' in x) || isValidBalanceTower(x.abyss))
+        && (!('ember' in x) || isValidBalanceTower(x.ember))
+        && (!('anchor' in x) || isValidBalanceTower(x.anchor))
+        && (!('sunspear' in x) || isValidBalanceTower(x.sunspear))
+        && (!('siphon' in x) || isValidBalanceTower(x.siphon))
+        && (!('lure' in x) || isValidBalanceTower(x.lure))
+        && (!('flak' in x) || isValidBalanceTower(x.flak))
+        && (!('cinder' in x) || isValidBalanceTower(x.cinder))
+        && (!('gauss' in x) || isValidBalanceTower(x.gauss));
+    }
+
+    function isValidBalanceDoc(data) {
+      return data is map
+        && data.keys().hasOnly(['version', 'income', 'global', 'diffs', 'enemies', 'towers'])
+        && (!('version' in data) || (data.version is string && data.version.size() <= 30))
+        && (!('income' in data) || isValidBalanceIncome(data.income))
+        && (!('global' in data) || isValidBalanceGlobal(data.global))
+        && (!('diffs' in data) || isValidBalanceDiffs(data.diffs))
+        && (!('enemies' in data) || isValidBalanceEnemies(data.enemies))
+        && (!('towers' in data) || isValidBalanceTowers(data.towers));
+    }
+
+    function isTelemetrySchema(data) {
+      return data.schemaVersion == 3;
+    }
+
+    function isRunSummary(summary) {
+      return summary is map
+        && summary.keys().hasAll(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS'])
+        && summary.keys().hasOnly(['callsign', 'map', 'mapName', 'diff', 'diffName', 'freeplay', 'outcome', 'phase', 'wave', 'kills', 'credits', 'cashEarned', 'leaks', 'coresLeft', 'durationS', 'daily', 'weekly', 'gauntlet', 'gauntletRunId', 'gauntletLeg', 'gauntletNextRunId', 'contractId', 'scoreMultiplierEnd'])
+        && summary.callsign is string && summary.callsign.size() <= 20
+        && summary.map is string && summary.map.size() <= 30 && isValidMapId(summary.map)
+        && summary.mapName is string && summary.mapName.size() <= 80
+        && summary.diff is string && summary.diff.size() <= 30 && isValidDiffId(summary.diff)
+        && summary.diffName is string && summary.diffName.size() <= 80
+        && summary.freeplay is bool
+        && summary.outcome in ['victory', 'gameover', 'abandoned']
+        && summary.phase is string && summary.phase.size() <= 30
+        && summary.wave is int && summary.wave >= 0 && summary.wave <= 10000
+        && summary.kills is int && summary.kills >= 0 && summary.kills < 10000000
+        && summary.credits is int && summary.credits >= 0 && summary.credits < 100000000
+        && summary.cashEarned is int && summary.cashEarned >= 0 && summary.cashEarned < 100000000
+        && summary.leaks is int && summary.leaks >= 0 && summary.leaks < 1000000
+        && summary.coresLeft is int && summary.coresLeft >= 0 && summary.coresLeft < 1000000
+        && summary.durationS is int && summary.durationS >= 0 && summary.durationS < 100000
+        && (!('daily' in summary) || isValidDailyBoard(summary.daily))
+        && (!('weekly' in summary) || isValidWeeklyBoard(summary.weekly))
+        && (!('gauntlet' in summary) || isValidWeeklyBoard(summary.gauntlet))
+        && (!('contractId' in summary) || (summary.contractId is string && summary.contractId.size() <= 30))
+        // freeplay score multiplier compounds across waves/risks/relics; it is a display-only
+        // stat (ranking is verified server-side against the replay), so the bound is generous —
+        // capping it at 100 used to reject deep freeplay runs and block their score submission.
+        && (!('scoreMultiplierEnd' in summary) || (summary.freeplay == true && summary.scoreMultiplierEnd is number && summary.scoreMultiplierEnd >= 0 && summary.scoreMultiplierEnd <= 1000000000));
+    }
+
+    function isReplayManifestValue(manifest, chunkCount) {
+      return manifest is map
+          && manifest.keys().hasAll(['chunkEventCounts', 'actionHash', 'complete'])
+          && manifest.keys().hasOnly(['chunkEventCounts', 'actionHash', 'complete'])
+          && manifest.chunkEventCounts is list
+          && manifest.chunkEventCounts.size() == chunkCount
+          && manifest.actionHash is string
+          && manifest.actionHash.matches('^[a-f0-9]{8}$')
+          && manifest.complete == true;
+    }
+
+    function isRunManifest(data) {
+      return isReplayManifestValue(data.manifest, data.chunkCount);
+    }
+
+    function isReplayActionPack(pack) {
+      return pack is map
+          && pack.keys().hasAll(['codec', 'count', 'towerIds', 'data'])
+          && pack.keys().hasOnly(['codec', 'count', 'towerIds', 'data'])
+          && pack.codec == 'r3'
+          && pack.count is int
+          && pack.count >= 0
+          && pack.count <= 650
+          && pack.towerIds is list
+          && pack.towerIds.size() <= 40
+          && pack.data is string
+          && pack.data.size() <= 200000;
+    }
+
+    function isValidReplayEngineVersion(n) {
+      return n is int && n >= 1 && n <= 100;
+    }
+
+    function isValidRunSetup(data) {
+      return data is map
+          && data.keys().hasAll(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'balanceVersion'])
+          && data.keys().hasOnly(['map', 'mapName', 'mapHash', 'diff', 'diffName', 'seed', 'startingCash', 'startingLives', 'availableTowerIds', 'lifetimeKillsAtStart', 'balanceVersion', 'balance', 'daily', 'weekly', 'gauntlet', 'gauntletProtocol', 'replayEngine'])
+          && data.map is string && isValidMapId(data.map)
+          && data.mapName is string && data.mapName.size() <= 80
+          // 8-hex from current clients; 1-7 char base36 from the first v3 client
+          // build (hashMap used toString(36) — the mismatch rejected every real
+          // submit at launch). Both stay accepted so open sessions can retry.
+          && data.mapHash is string && data.mapHash.matches('^[0-9a-z]{1,13}$')
+          && data.diff is string && isValidDiffId(data.diff)
+          && data.diffName is string && data.diffName.size() <= 80
+          && data.seed is int && data.seed >= 0
+          && data.startingCash is int && data.startingCash >= 0 && data.startingCash < 100000000
+          && data.startingLives is int && data.startingLives >= 1 && data.startingLives < 1000000
+          && data.availableTowerIds is list && data.availableTowerIds.size() >= 1 && data.availableTowerIds.size() <= 40
+          // lifetimeKillsAtStart (optional, 2026-07-05) is key-allowed above but NOT
+          // value-validated here: this rule sits at Firestore's 1000-expression cap
+          // (see the gauntlet leg-chain precedent). reSimulate sanitizes it instead.
+          && data.balanceVersion is string && data.balanceVersion.size() <= 40
+          && (!('balance' in data) || isValidBalanceDoc(data.balance))
+          && (!('daily' in data) || isValidDailyChallengeSnapshot(data.daily))
+          && (!('weekly' in data) || (data.weekly.id is string && isValidWeeklyBoard(data.weekly.id)))
+          && (!('gauntlet' in data) || (data.gauntlet.week is string && isValidWeeklyBoard(data.gauntlet.week) && data.gauntlet.runId is string && isValidRunId(data.gauntlet.runId)))
+          && (!('gauntletProtocol' in data) || data.gauntletProtocol is map)
+          && (!('replayEngine' in data) || isValidReplayEngineVersion(data.replayEngine));
+    }
+
+    function isReplayStreamParent(uid, runId, data) {
+      return data is map
+          && data.keys().hasAll(['schemaVersion', 'uid', 'runId', 'build', 'updatedAt'])
+          && data.keys().hasOnly(['schemaVersion', 'uid', 'runId', 'build', 'updatedAt', 'expiresAt', 'submitted', 'sealedAt', 'chunkCount', 'eventCount', 'manifest', 'summary'])
+          && data.schemaVersion == 1
+          && data.uid == uid
+          && request.auth.uid == uid
+          && isValidUid(uid)
+          && data.runId == runId
+          && isValidRunId(runId)
+          && data.build is string && data.build.size() <= 30
+          && data.updatedAt is int && data.updatedAt > 0
+          && (!('expiresAt' in data) || data.expiresAt is timestamp)
+          && (!('submitted' in data) || data.submitted is bool)
+          && (!('sealedAt' in data) || (data.sealedAt is int && data.sealedAt > 0))
+          && (!('chunkCount' in data) || (data.chunkCount is int && data.chunkCount >= 0 && data.chunkCount <= 100))
+          && (!('eventCount' in data) || (data.eventCount is int && data.eventCount >= 0 && data.eventCount <= 100000))
+          && (!('manifest' in data) || (data.chunkCount is int && isReplayManifestValue(data.manifest, data.chunkCount)))
+          && (!('summary' in data) || isRunSummary(data.summary));
+    }
+
+    function isReplayStreamChunk(uid, runId, data) {
+      return data is map
+          && data.keys().hasAll(['schemaVersion', 'uid', 'runId', 'chunk', 'actions', 'createdAt', 'build', 'expiresAt'])
+          && data.keys().hasOnly(['schemaVersion', 'uid', 'runId', 'chunk', 'actions', 'createdAt', 'build', 'expiresAt'])
+          && isTelemetrySchema(data)
+          && data.uid == uid
+          && request.auth.uid == uid
+          && isValidUid(uid)
+          && data.runId == runId
+          && isValidRunId(runId)
+          && data.chunk is int && data.chunk >= 0 && data.chunk <= 9999
+          && data.createdAt is int && data.createdAt > 0
+          && data.build is string && data.build.size() <= 30
+          && data.expiresAt is timestamp
+          && isReplayActionPack(data.actions);
+    }
+
+    function isValidDailyArsenalSnapshot(data) {
+      return data is map
+          && data.keys().hasAll(['id', 'name', 'short', 'desc'])
+          && data.keys().hasOnly(['id', 'name', 'short', 'desc', 'towerIds', 'bannedDamageType', 'bannedStyle', 'upgradeTierCap', 'costMultiplier'])
+          && data.id is string && isValidDailyArsenalId(data.id)
+          && data.name is string && data.name.size() <= 80
+          && data.short is string && data.short.size() <= 20
+          && data.desc is string && data.desc.size() <= 240
+          && (!('towerIds' in data) || (data.towerIds is list && data.towerIds.size() <= 40))
+          && (!('bannedDamageType' in data) || data.bannedDamageType in ['kinetic', 'energy', 'explosive', 'cryo'])
+          && (!('bannedStyle' in data) || data.bannedStyle in ['single', 'splash', 'support'])
+          && (!('upgradeTierCap' in data) || (data.upgradeTierCap is int && data.upgradeTierCap >= 0 && data.upgradeTierCap <= 6))
+          && (!('costMultiplier' in data) || (data.costMultiplier is number && data.costMultiplier >= 0.25 && data.costMultiplier <= 4));
+    }
+
+    function isValidDailyTwistSnapshot(data) {
+      return data is map
+          && data.keys().hasAll(['id', 'name', 'short', 'desc'])
+          && data.keys().hasOnly(['id', 'name', 'short', 'desc', 'waveGapMultiplier', 'towerDamageMultiplier', 'startingLivesMultiplier', 'killRewardMultiplier', 'waveBonusMultiplier', 'sensorBlackout', 'enemyHpMultiplier', 'enemyDamageTakenMultiplier'])
+          && data.id is string && isValidDailyTwistId(data.id)
+          && data.name is string && data.name.size() <= 80
+          && data.short is string && data.short.size() <= 20
+          && data.desc is string && data.desc.size() <= 240
+          && (!('waveGapMultiplier' in data) || isBalanceMult(data.waveGapMultiplier))
+          && (!('towerDamageMultiplier' in data) || isBalanceMult(data.towerDamageMultiplier))
+          && (!('startingLivesMultiplier' in data) || isBalanceMult(data.startingLivesMultiplier))
+          && (!('killRewardMultiplier' in data) || isBalanceMult(data.killRewardMultiplier))
+          && (!('waveBonusMultiplier' in data) || isBalanceMult(data.waveBonusMultiplier))
+          && (!('sensorBlackout' in data) || data.sensorBlackout is bool)
+          && (!('enemyHpMultiplier' in data) || isBalanceMult(data.enemyHpMultiplier))
+          && (!('enemyDamageTakenMultiplier' in data) || isBalanceMult(data.enemyDamageTakenMultiplier));
+    }
+
+    function isValidDailyBoonSnapshot(data) {
+      return data is map
+          && data.keys().hasAll(['id', 'name', 'short', 'desc'])
+          && data.keys().hasOnly(['id', 'name', 'short', 'desc', 'creditCacheWave', 'creditCacheAmount', 'freeAbilityRecharge', 'pickupDropMultiplier'])
+          && data.id is string && isValidDailyBoonId(data.id)
+          && data.name is string && data.name.size() <= 80
+          && data.short is string && data.short.size() <= 20
+          && data.desc is string && data.desc.size() <= 240
+          && (!('creditCacheWave' in data) || (data.creditCacheWave is int && data.creditCacheWave >= 1 && data.creditCacheWave <= 10000))
+          && (!('creditCacheAmount' in data) || (data.creditCacheAmount is int && data.creditCacheAmount >= 0 && data.creditCacheAmount < 100000000))
+          && (!('freeAbilityRecharge' in data) || data.freeAbilityRecharge is bool)
+          && (!('pickupDropMultiplier' in data) || isBalanceMult(data.pickupDropMultiplier));
+    }
+
+    function isValidDailyChallengeSnapshot(data) {
+      return data is map
+          && data.keys().hasAll(['id', 'dateKey', 'mapId', 'diffId', 'title', 'arsenal', 'twist', 'boon', 'rules'])
+          && data.keys().hasOnly(['id', 'dateKey', 'mapId', 'diffId', 'title', 'arsenal', 'twist', 'boon', 'rules'])
+          && data.id is string && isValidDailyBoard(data.id)
+          && data.dateKey is string && data.dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && data.mapId is string && isValidMapId(data.mapId)
+          && data.diffId is string && isValidDiffId(data.diffId)
+          && data.title is string && data.title.size() <= 120
+          && isValidDailyArsenalSnapshot(data.arsenal)
+          && isValidDailyTwistSnapshot(data.twist)
+          && isValidDailyBoonSnapshot(data.boon)
+          && data.rules is list && data.rules.size() <= 8;
+    }
+
+    function isValidWeeklyChallengeSnapshot(data) {
+      return data is map
+          && data.keys().hasAll(['id'])
+          && data.keys().hasOnly(['id', 'dateKey', 'weekKey', 'mapId', 'diffId', 'title', 'arsenal', 'twist', 'twistIds', 'twists', 'boon', 'rules'])
+          && data.id is string && isValidWeeklyBoard(data.id);
+    }
+
+    // public leaderboards: anyone can read. Writes are SERVER-ONLY via the submitScore
+    // Cloud Function (Admin SDK, which bypasses rules); direct client writes are blocked.
+    // This is the leaderboard-integrity lockdown — scores are validated against a replay
+    // and rate-limited server-side before they land here.
+    match /boards/{board}/scores/{id} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    // daily freeplay leaderboards: anyone can read. Writes are SERVER-ONLY via the
+    // submitDailyScore Cloud Function (Admin SDK).
+    match /dailyBoards/{daily}/scores/{id} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    match /weeklyBoards/{weekly}/scores/{id} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    match /gauntletBoards/{weekly}/scores/{id} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    match /gauntletProtocolBoards/{weekly}/scores/{id} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    // public sanitized run replays: anyone may fetch by id; listing is admin-only.
+    match /runs/{runId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow delete: if false;
+      allow create: if isPlayer()
+        && isValidRunId(runId)
+        && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'manifest', 'summary', 'setup', 'actions', 'final'])
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'replayTokenHash', 'createdAt', 'endedAt', 'build', 'chunkCount', 'eventCount', 'manifest', 'summary', 'setup', 'actions', 'final'])
+        && isTelemetrySchema(request.resource.data)
+        && request.resource.data.runId == runId
+        && request.resource.data.replayTokenHash is string && request.resource.data.replayTokenHash.matches('^[a-f0-9]{64}$')
+        && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
+        && request.resource.data.endedAt is int && request.resource.data.endedAt >= request.resource.data.createdAt
+        && request.resource.data.build is string && request.resource.data.build.size() <= 30
+        && request.resource.data.chunkCount is int && request.resource.data.chunkCount >= 0 && request.resource.data.chunkCount <= 100
+        && request.resource.data.eventCount is int && request.resource.data.eventCount >= 0 && request.resource.data.eventCount <= 100000
+        && isRunManifest(request.resource.data)
+        && isRunSummary(request.resource.data.summary)
+        && isValidRunSetup(request.resource.data.setup)
+        && request.resource.data.final is map
+        && isReplayActionPack(request.resource.data.actions);
+
+      match /chunks/{chunkId} {
+        allow get: if true;
+        allow list: if isAdmin();
+        allow delete: if false;
+        allow create: if isPlayer()
+          && isValidRunId(runId)
+          && chunkId.matches('^c[0-9]{1,4}$')
+          && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'chunk', 'actions'])
+          && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'chunk', 'actions'])
+          && isTelemetrySchema(request.resource.data)
+          && request.resource.data.runId == runId
+          && request.resource.data.chunk is int && request.resource.data.chunk >= 0 && request.resource.data.chunk <= 9999
+          && isReplayActionPack(request.resource.data.actions);
+      }
+    }
+
+    // private replay ownership index: lets operator-run deletion find public
+    // replays even if score submission fails after the replay upload.
+    match /replayOwners/{uid}/runs/{runId} {
+      allow read: if isAdmin();
+      allow update, delete: if false;
+      // uid is bound to the authenticated identity: this is what stops one
+      // player from planting ownership entries under a victim's uid to
+      // weaponize operator-run deletions against other players' replays.
+      allow create: if isPlayer()
+        && request.auth.uid == uid
+        && isValidUid(uid)
+        && isValidRunId(runId)
+        && request.resource.data.keys().hasAll(['schemaVersion', 'uid', 'runId', 'createdAt', 'build'])
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'uid', 'runId', 'createdAt', 'build'])
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.uid == uid
+        && request.resource.data.runId == runId
+        && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
+        && request.resource.data.build is string && request.resource.data.build.size() <= 30;
+    }
+
+    // live, unsubmitted replay action chunks. These are uid-bound staging rows
+    // with TTL; final public replay docs are still written under /runs/{runId}.
+    match /replayStreams/{uid}/runs/{runId} {
+      allow read: if isAdmin();
+      allow delete: if false;
+      allow create, update: if isPlayer()
+        && isReplayStreamParent(uid, runId, request.resource.data);
+
+      match /chunks/{chunkId} {
+        allow read: if isAdmin();
+        allow delete: if false;
+        allow update: if false;
+        allow create: if isPlayer()
+          && chunkId.matches('^c[0-9]{1,6}$')
+          && isReplayStreamChunk(uid, runId, request.resource.data);
+      }
+    }
+
+    // private engagement analytics: players write; only admins can read.
+    match /runAnalytics/{runId} {
+      allow read: if isAdmin();
+      allow update, delete: if false;
+      allow create: if isPlayer()
+        && request.resource.data.uid == request.auth.uid
+        && isValidRunId(runId)
+        && isTelemetrySchema(request.resource.data)
+        && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'createdAt', 'endedAt', 'build', 'summary', 'onboarding', 'abandonment', 'difficulty', 'economy', 'menu', 'controls', 'combat', 'placement', 'assistance', 'freeplay', 'towerInterest', 'progression', 'leaderboard', 'attention', 'performance'])
+        && request.resource.data.runId == runId
+        && request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
+        && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
+        && request.resource.data.endedAt is int && request.resource.data.endedAt >= request.resource.data.createdAt
+        && request.resource.data.build is string && request.resource.data.build.size() <= 30
+        && isRunSummary(request.resource.data.summary)
+        && request.resource.data.onboarding is map
+        && request.resource.data.abandonment is map
+        && request.resource.data.difficulty is map
+        && request.resource.data.economy is map
+        && request.resource.data.menu is map
+        && request.resource.data.controls is map
+        && request.resource.data.combat is map
+        && request.resource.data.placement is map
+        && request.resource.data.assistance is map
+        && request.resource.data.freeplay is map
+        && request.resource.data.towerInterest is map
+        && request.resource.data.progression is map
+        && request.resource.data.leaderboard is map
+        && request.resource.data.attention is map
+        && request.resource.data.performance is map;
+    }
+
+    // live private run checkpoints: compact, append-only chunks for admin dashboards.
+    match /runCheckpoints/{runId} {
+      allow read: if isAdmin();
+      allow write: if false;
+
+      match /chunks/{chunkId} {
+        allow read: if isAdmin();
+        allow update, delete: if false;
+        allow create: if isPlayer()
+          && request.resource.data.uid == request.auth.uid
+          && isValidRunId(runId)
+          && chunkId.matches('^c[0-9]{1,6}$')
+          && request.resource.data.keys().hasAll(['schemaVersion', 'runId', 'uid', 'chunk', 'reason', 'createdAt', 'build', 'summary', 'performance', 'attention', 'counters', 'recentEvents', 'latestSnapshot'])
+          && request.resource.data.keys().hasOnly(['schemaVersion', 'runId', 'uid', 'chunk', 'reason', 'createdAt', 'build', 'summary', 'performance', 'attention', 'counters', 'recentEvents', 'latestSnapshot', 'expiresAt'])
+          && (!('expiresAt' in request.resource.data) || request.resource.data.expiresAt is timestamp)
+          && isTelemetrySchema(request.resource.data)
+          && request.resource.data.runId == runId
+          && request.resource.data.uid is string && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
+          && request.resource.data.chunk is int && request.resource.data.chunk >= 0 && request.resource.data.chunk <= 999999
+          && request.resource.data.reason is string && request.resource.data.reason.size() <= 30
+          && request.resource.data.createdAt is int && request.resource.data.createdAt > 0
+          && request.resource.data.build is string && request.resource.data.build.size() <= 30
+          && isRunSummary(request.resource.data.summary)
+          && request.resource.data.performance is map
+          && request.resource.data.attention is map
+          && request.resource.data.counters is map
+          && request.resource.data.recentEvents is list && request.resource.data.recentEvents.size() <= 32
+          && (request.resource.data.latestSnapshot == null || request.resource.data.latestSnapshot is map);
+      }
+    }
+
+    // player feedback: SERVER-ONLY creates via submitFeedback. Admins can read/reply
+    // after Google sign-in; players fetch replies through a private token callable.
+    match /feedback/{id} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow delete: if false;
+      allow create: if false;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reply', 'replyTs', 'repliedBy'])
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'ctx', 'status', 'replyTokenHash', 'serverTs', 'reply', 'replyTs', 'repliedBy'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.text == resource.data.text
+        && request.resource.data.ts == resource.data.ts
+        && request.resource.data.ctx == resource.data.ctx
+        && (!('replyTokenHash' in resource.data) || request.resource.data.replyTokenHash == resource.data.replyTokenHash)
+        && (!('serverTs' in resource.data) || request.resource.data.serverTs == resource.data.serverTs)
+        && (!('status' in request.resource.data) || request.resource.data.status in ['open', 'replied', 'archived'])
+        && (!('reply' in request.resource.data) || (request.resource.data.reply is string && request.resource.data.reply.size() <= 2000))
+        && (!('replyTs' in request.resource.data) || request.resource.data.replyTs is int)
+        && (!('repliedBy' in request.resource.data) || (request.resource.data.repliedBy is string && request.resource.data.repliedBy.size() <= 120));
+    }
+
+    // anonymous gameplay telemetry: player append-only, admin-read only.
+    match /telemetry/{id} {
+      allow read: if isAdmin();
+      allow update, delete: if false;
+      allow create: if isPlayer()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS', 'leaks', 'coresLeft', 'towers', 'dmg', 'abilities', 'build', 'expiresAt'])
+        && request.resource.data.keys().hasAll(['uid', 'ts', 'kind', 'map', 'diff', 'wave', 'kills', 'cash', 'won', 'freeplay', 'durationS'])
+        && (!('expiresAt' in request.resource.data) || request.resource.data.expiresAt is timestamp)
+        && request.resource.data.uid is string
+        && request.resource.data.uid.size() >= 6 && request.resource.data.uid.size() <= 40
+        && request.resource.data.ts is int && request.resource.data.ts > 0
+        && request.resource.data.kind is string && request.resource.data.kind.size() <= 30
+        && request.resource.data.map is string && request.resource.data.map.size() <= 30 && isValidMapId(request.resource.data.map)
+        && request.resource.data.diff is string && request.resource.data.diff.size() <= 30 && isValidDiffId(request.resource.data.diff)
+        && request.resource.data.wave is int && request.resource.data.wave >= 0 && request.resource.data.wave <= 10000
+        && request.resource.data.kills is int && request.resource.data.kills >= 0 && request.resource.data.kills < 10000000
+        && request.resource.data.cash is int && request.resource.data.cash >= 0 && request.resource.data.cash < 100000000
+        && request.resource.data.won is bool
+        && request.resource.data.freeplay is bool
+        && request.resource.data.durationS is int && request.resource.data.durationS >= 0 && request.resource.data.durationS < 100000
+        && (!('leaks' in request.resource.data) || (request.resource.data.leaks is int && request.resource.data.leaks >= 0 && request.resource.data.leaks < 1000000))
+        && (!('coresLeft' in request.resource.data) || (request.resource.data.coresLeft is int && request.resource.data.coresLeft >= 0 && request.resource.data.coresLeft < 1000000))
+        && (!('towers' in request.resource.data) || (request.resource.data.towers is string && request.resource.data.towers.size() <= 200))
+        && (!('dmg' in request.resource.data) || (request.resource.data.dmg is string && request.resource.data.dmg.size() <= 120))
+        && (!('abilities' in request.resource.data) || (request.resource.data.abilities is int && request.resource.data.abilities >= 0 && request.resource.data.abilities < 100000))
+        && (!('build' in request.resource.data) || (request.resource.data.build is string && request.resource.data.build.size() <= 30));
+    }
+
+    // admin-pinned "Replay of the Day": public read (the menu spotlight), admin write only.
+    // Stores a denormalized snapshot of the chosen run so the menu needs no extra lookup.
+    match /config/spotlight {
+      allow get: if true;
+      allow list: if false;
+      allow delete: if isAdmin(); // clear the pin → menu reverts to the automatic pick
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['runId', 'callsign', 'wave', 'mapName', 'diffName', 'freeplay', 'pinnedAt', 'pinnedBy'])
+        && request.resource.data.keys().hasAll(['runId', 'wave', 'freeplay'])
+        && request.resource.data.runId is string && request.resource.data.runId.matches('^r_[A-Za-z0-9_-]{8,80}$')
+        && request.resource.data.wave is int && request.resource.data.wave >= 0 && request.resource.data.wave <= 100000
+        && request.resource.data.freeplay is bool
+        && (!('callsign' in request.resource.data) || (request.resource.data.callsign is string && request.resource.data.callsign.size() <= 40))
+        && (!('mapName' in request.resource.data) || (request.resource.data.mapName is string && request.resource.data.mapName.size() <= 80))
+        && (!('diffName' in request.resource.data) || (request.resource.data.diffName is string && request.resource.data.diffName.size() <= 80))
+        && (!('pinnedAt' in request.resource.data) || request.resource.data.pinnedAt is int)
+        && (!('pinnedBy' in request.resource.data) || (request.resource.data.pinnedBy is string && request.resource.data.pinnedBy.size() <= 120));
+    }
+
+    // remote balance overrides: public read (PII-free gameplay tuning), admin write only.
+    // The client clamps every value to [0.25, 4] and falls back to identity; rules mirror
+    // the sparse shape so public clients can never publish unknown gameplay fields.
+    match /config/balance {
+      allow get: if true;
+      allow list: if false;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && isValidBalanceDoc(request.resource.data);
+    }
+
+    // optional Daily Challenge live-ops override: public read, admin write.
+    // Pins a modifier combo for exactly one UTC date; scoring identity remains daily-YYYY-MM-DD.
+    match /config/dailyOverride {
+      allow get: if true;
+      allow list: if false;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && isValidDailyOverrideDoc(request.resource.data);
+    }
+
+    match /config/weeklyOverride {
+      allow get: if true;
+      allow list: if false;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && isValidWeeklyOverrideDoc(request.resource.data);
+    }
+
+    match /config/weeklyGauntlet {
+      allow get: if true;
+      allow list: if false;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() && isValidWeeklyGauntletDoc(request.resource.data);
+    }
+
+    // server-maintained global-top aggregate: one public doc replaces the
+    // 32-query per-menu-view board fan-out. Written only by the score
+    // functions (Admin SDK bypasses rules).
+    match /aggregates/globalTop {
+      allow get: if true;
+      allow list: if false;
+      allow write: if false;
+    }
+
+    // Cosmetic-only account entitlements. The authenticated player can read
+    // their compact registry snapshot; every write is performed by Cloud
+    // Functions through the Admin SDK. Grant receipts stay operator-auditable
+    // and are never exposed to the client.
+    match /entitlements/{uid} {
+      allow get: if (isPlayer() && request.auth.uid == uid) || isAdmin();
+      allow list: if false;
+      allow write: if false;
+
+      match /grants/{grantId} {
+        allow read: if isAdmin();
+        allow write: if false;
+      }
+    }
+
+    // Deep re-simulation verdict reasons: written only by Functions with Admin SDK.
+    // Public leaderboard rows expose only the compact verify/verifyTs fields.
+    match /runVerificationReasons/{runId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

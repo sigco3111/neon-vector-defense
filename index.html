@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="manifest" href="./site.webmanifest" />
+    <link rel="preload" href="./fonts/orbitron-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/rajdhani-500.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="mask-icon" href="./favicon.svg" color="#4bcffa" />
+    <!-- No maximum-scale / user-scalable=no: blocking pinch-zoom fails WCAG 1.4.4
+         and portal accessibility checklists. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#070a14" />
+    <meta name="msapplication-TileColor" content="#070a14" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="application-name" content="란턴 7" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="란턴 7" />
+
+    <title>란턴 7 - SF 타워 디펜스 (한글화)</title>
+    <meta name="description" content="마지막 등대를 지켜라. 18개 타워, 이중 업그레이드 경로, 4단계 프로토콜, 글로벌 리더보드, 무한 프리플레이를 갖춘 SF 타워 디펜스. (한글화 데모)" />
+
+    <!-- Open Graph / link previews -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="란턴 7" />
+    <meta property="og:title" content="란턴 7 - SF 타워 디펜스 (한글화)" />
+    <meta property="og:description" content="마지막 등대를 지켜라. 18개 타워, 이중 업그레이드 경로, 4단계 프로토콜, 글로벌 리더보드. (한글화 데모)" />
+    <meta property="og:url" content="https://sigco3111.github.io/neon-vector-defense/" />
+    <meta property="og:image" content="https://sigco3111.github.io/neon-vector-defense/og-image.jpg" />
+
+    <!-- Twitter / X card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="란턴 7 - SF 타워 디펜스 (한글화)" />
+    <meta name="twitter:description" content="마지막 등대를 지키는 SF 타워 디펜스. 한글화 데모." />
+    <meta name="twitter:image" content="https://sigco3111.github.io/neon-vector-defense/og-image.jpg" />
+  </head>
+  <body>
+    <div id="root">
+      <!-- FOUC 방지: JS 로드 전 짧은 깜빡임 동안에도 한국어 노출 -->
+      <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#05070f;color:#cfd9ff;font-family:system-ui,sans-serif;letter-spacing:2px;">
+        랜턴 7 · 시동 중
+      </div>
+    </div>
+    <script type="module" src="./src/main.tsx"></script>
+  </body>
+</html>

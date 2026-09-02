@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Commit Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Install Dependencies
+        run: npm ci
+      - name: Install Browser
+        run: npx playwright install --with-deps chromium
+      - name: Build App
+        run: npm run build
+      - name: Playwright E2E
+        run: npm test
+      - name: CI Guardrails
+        run: npm run test:jest
+      - name: Meta Progression Checks
+        run: npm run meta:sim
+      - name: Performance Smoke
+        run: npm run perf:quick
+      # Intentional balance changes: regenerate the full baseline with `npm run balance`,
+      # review and commit public/balance-report.json, then include [balance-intended]
+      # in the commit message to skip this quick drift gate.
+      - name: Balance Gate
+        run: |
+          if git log -1 --pretty=%B | grep -Fq '[balance-intended]'; then
+            echo "Skipping balance gate because [balance-intended] was found in the commit message."
+            exit 0
+          fi
+          npm run balance:gate
+      - name: Security Tests
+        run: npm run test:security
+      - name: Engine Unit Tests
+        run: npm run test:engine
+      - name: Typecheck
+        run: npm run typecheck:all
+      - name: High Severity Audit
+        run: npm run audit:high
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-artifacts
+          path: |
+            playwright-report/
+            test-results/
+            firebase-debug.log
+            firestore-debug.log
+          if-no-files-found: ignore
+
+  worker:
+    name: Worker Wrangler Dry Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - name: Install Worker Dependencies
+        working-directory: worker
+        run: npm ci
+      - name: Worker Dry Run
+        working-directory: worker
+        run: |
+          cp wrangler.toml.example wrangler.toml
+          mkdir -p "$RUNNER_TEMP/worker-dry-run"
+          set +e
+          WRANGLER_OUTPUT="$(npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker-dry-run" 2>&1)"
+          WRANGLER_STATUS=$?
+          set -e
+          printf '%s\n' "$WRANGLER_OUTPUT"
+          if [ "$WRANGLER_STATUS" -ne 0 ]; then
+            if printf '%s\n' "$WRANGLER_OUTPUT" | grep -Eiq 'not authenticated|not logged in|api token|CLOUDFLARE_API_TOKEN|wrangler login'; then
+              echo "Wrangler requires Cloudflare auth for dry-run in this environment; local build validation was attempted with --outdir."
+              exit 0
+            fi
+            exit "$WRANGLER_STATUS"
+          fi
+
+  secrets:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

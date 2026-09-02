@@ -1,0 +1,87 @@
+{
+  "name": "neon-vector-defense",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A neon sci-fi tower defense game built with React, TypeScript, Canvas, Firebase, and headless balance simulations.",
+  "homepage": "https://neon-vector-defense-7.web.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Calculator5329/neon-vector-defense.git"
+  },
+  "license": "MIT",
+  "keywords": [
+    "react",
+    "typescript",
+    "canvas",
+    "game-dev",
+    "tower-defense",
+    "simulation",
+    "firebase",
+    "vite"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:crazygames": "node ./scripts/build-portal.mjs crazygames",
+    "build:poki": "node ./scripts/build-portal.mjs poki",
+    "test": "npm run test:e2e",
+    "test:e2e": "node ./tests/e2e/run-playwright.mjs",
+    "test:e2e:prod": "node ./tests/e2e/run-playwright.mjs --preview",
+    "test:e2e:headed": "node ./tests/e2e/run-playwright.mjs --headed",
+    "test:engine": "tsx --test tests/unit/*.test.ts",
+    "test:replay-e2e": "tsx scripts/replay-e2e.ts",
+    "check:deploy-env": "tsx scripts/deploy-preflight.ts",
+    "test:rules": "npm run check:deploy-env && firebase emulators:exec --only firestore \"npm run test:rules:run\"",
+    "test:rules:run": "tsx --test tests/security/firestore-rules.test.ts",
+    "test:functions": "npm --prefix functions ci && npm --prefix functions run build && tsx --test tests/functions/*.test.ts",
+    "test:callables": "npm --prefix functions ci && npm --prefix functions run build && firebase emulators:exec --only firestore,functions,auth \"tsx --test tests/callables/*.test.ts\"",
+    "test:worker": "node --test tests/worker/*.test.mjs",
+    "test:jest": "jest --runInBand",
+    "test:security": "npm run test:rules && npm run test:worker && npm run test:functions && npm run test:callables",
+    "audit:root": "npm audit --audit-level=high",
+    "audit:functions": "npm --prefix functions audit --audit-level=high",
+    "audit:worker": "npm --prefix worker audit --audit-level=high",
+    "audit:high": "npm run audit:root && npm run audit:functions && npm run audit:worker",
+    "typecheck:all": "tsc -p tsconfig.check.json",
+    "ci": "npm run build && npm test && npm run test:jest && npm run test:replay-e2e && npm run meta:sim && npm run perf:quick && npm run balance:gate && npm run test:security && npm run test:engine && npm run typecheck:all && npm run audit:high",
+    "preview": "vite preview",
+    "sim": "tsx scripts/sim.ts",
+    "sim:quick": "npm run sim -- quick",
+    "perf": "tsx scripts/perf.ts",
+    "perf:quick": "npm run perf -- quick",
+    "perf:browser": "node scripts/browserPerf.mjs",
+    "balance": "tsx scripts/balance.ts",
+    "balance:gate": "tsx scripts/balance.ts quick --gate --out test-results/balance-gate-report.json && tsx scripts/balance-check.ts --baseline public/balance-report.json --current test-results/balance-gate-report.json",
+    "tower:deep-dive": "tsx scripts/tower-deep-dive.ts",
+    "meta:sim": "tsx scripts/meta-sim.ts"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "@playwright/test": "^1.61.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react-swc": "^4.3.1",
+    "firebase-tools": "^15.22.4",
+    "jest": "^30.4.2",
+    "tsx": "^4.22.4",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.3"
+  },
+  "dependencies": {
+    "firebase": "^12.15.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "overrides": {
+    "gaxios": {
+      "uuid": "^11.1.1"
+    },
+    "@opentelemetry/core": "^2.8.0"
+  }
+}

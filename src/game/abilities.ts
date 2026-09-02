@@ -1,0 +1,68 @@
+import type { AbilityDef } from './types';
+
+// Commander abilities — unlocked as the campaign progresses, each on its own cooldown.
+export const ABILITIES: AbilityDef[] = [
+  {
+    id: 'strike',
+    name: '궤도 타격',
+    icon: '☄',
+    desc: '궤도 플랫폼에서 광선을 소환합니다. 목표 지점에 막대한 피해를 입히며, 모든 면역 효과를 무시합니다.',
+    cooldown: 45,
+    targeted: true,
+    unlockWave: 0,
+  },
+  {
+    id: 'chrono',
+    name: '시간 왜곡장',
+    icon: '⌛',
+    desc: '섹터 전체를 늘어진 시간으로 덮습니다. 6초 동안 모든 적이 35% 속도로 이동합니다 (크라이오 면역 함선도 포함).',
+    cooldown: 60,
+    targeted: false,
+    unlockWave: 8,
+  },
+  {
+    id: 'overdrive',
+    name: '과부하',
+    icon: '⚡',
+    desc: '모든 타워의 원자로를 한계까지 올립니다: 8초 동안 발사 속도가 +100%.',
+    cooldown: 75,
+    targeted: false,
+    unlockWave: 15,
+  },
+  {
+    id: 'salvage',
+    name: '인양 프로토콜',
+    icon: '⌬',
+    desc: '섹터 사령부에서 긴급 보급을 요청합니다. 현재 웨이브에 비례해 즉시 크레딧을 지급합니다.',
+    cooldown: 90,
+    targeted: false,
+    unlockWave: 22,
+  },
+  {
+    id: 'cascade',
+    name: '공명 연쇄 폭발',
+    icon: '♫',
+    desc: '필드 위의 모든 공명 표식을 동시에 폭발시킵니다: 스택당 15의 고정 피해. 별빛 칸토르 타워와 잘 어울립니다.',
+    cooldown: 70,
+    targeted: false,
+    unlockWave: 30,
+  },
+  {
+    id: 'mirror',
+    name: '거울 프로토콜',
+    icon: '◇',
+    desc: '10초 동안 출구로 빠져나간 함선들이 코어를 잃는 대신 입구로 되돌아갑니다.',
+    cooldown: 120,
+    targeted: false,
+    unlockWave: 40,
+  },
+  {
+    id: 'recalibrate',
+    name: '재보정',
+    icon: 'RC',
+    desc: '합동군 적응 대장을 비웁니다. 살아있는 미러 헐이 복제해둔 저항 대부분을 12초 동안 잃습니다.',
+    cooldown: 95,
+    targeted: false,
+    unlockWave: 28,
+  },
+];
