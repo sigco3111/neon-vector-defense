@@ -12,6 +12,7 @@ import { ELITE_AFFIX_META } from './game/eliteAffixes';
 import { fetchRunReplay, type RunReplayDoc } from './game/leaderboard';
 import { appMetrics } from './game/metrics';
 import { sfx } from './game/sound';
+import { runUrl } from './game/paths';
 import DossierShare from './DossierShare';
 import { buildDossierInputFromRun } from './game/dossier';
 import {
@@ -915,7 +916,7 @@ function ReplayStage({ run, onExit }: { run: RunReplayDoc; onExit: () => void })
           <span>{s.mapName} · {s.diffName}{s.freeplay ? ' · 프리플레이' : ''}</span>
         </div>
         {s.gauntletNextRunId && (
-          <a className="replay-btn" href={`/?run=${s.gauntletNextRunId}`} onClick={() => sfx.click()}>다음 구간</a>
+          <a className="replay-btn" href={runUrl(s.gauntletNextRunId)} onClick={() => sfx.click()}>다음 구간</a>
         )}
         <DossierShare input={dossierInput} runId={run.runId} compact />
       </div>

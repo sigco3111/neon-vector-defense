@@ -11,6 +11,7 @@ import { ALL_MAPS, DIFFICULTIES } from './game/maps';
 import { TOWERS, TOWERS_BY_UNLOCK, TOWER_MAP } from './game/towers';
 import { ENEMY_LIST } from './game/enemies';
 import { clearAdmin } from './game/admin';
+import { runUrl } from './game/paths';
 import { fetchBoardRowsForRun, fetchRunAnalytics, fetchRunAnalyticsById, fetchRunReplay, fetchTelemetry, fetchRunSnapshots, fetchGlobalTop, verifyRun, TELEMETRY_BUILD, type RunAnalyticsRow, type TelemetryRow, type RunSnapshotRow, type RankedScoreEntry, type RunBoardScoreRow, type RunReplayDoc, type RunVerifyResult, type RunVerifyRowStatus } from './game/leaderboard';
 import { fetchPinnedSpotlightAdmin, pinReplayOfTheDay, unpinReplayOfTheDay, spotlightFromRunId, type PinnedSpotlight } from './game/adminSpotlight';
 import { fetchBalanceConfigAdmin, publishBalanceConfigAdmin, resetBalanceConfigAdmin } from './game/adminBalanceConfig';
@@ -2045,7 +2046,7 @@ function RunInspector({ runId, analyticsHint, onClose }: { runId: string; analyt
           <div className="adm-card adm-inspector-replay">
             <div className="adm-card-head"><h3>Replay</h3><span className="adm-hint">embedded public Battle Plan</span></div>
             {replay === undefined ? <div className="adm-empty">Loading replay...</div>
-              : replay ? <iframe className="adm-run-frame" title={`Replay ${runId}`} src={`/?run=${encodeURIComponent(runId)}`} />
+              : replay ? <iframe className="adm-run-frame" title={`Replay ${runId}`} src={runUrl(runId)} />
                 : <div className="adm-empty">Replay unavailable. The public run doc may be missing, invalid, or expired.</div>}
           </div>
           <div className="adm-card">
@@ -2635,7 +2636,7 @@ function RunDetailDrawer({ row, metric, onClose }: { row: RunAnalyticsRow; metri
       <aside className="adm-drawer" role="dialog" aria-label="Run analytics detail" onClick={(e) => e.stopPropagation()}>
         <div className="adm-card-head">
           <h3>{row.runId}</h3>
-          <button className="adm-mini" onClick={() => window.open(`/?run=${encodeURIComponent(row.runId)}`, '_blank', 'noopener,noreferrer')}>watch</button>
+          <button className="adm-mini" onClick={() => window.open(runUrl(row.runId), '_blank', 'noopener,noreferrer')}>watch</button>
           <button className="adm-mini" onClick={onClose}>close</button>
         </div>
         <div className="adm-insight-grid">
@@ -3562,7 +3563,7 @@ function SpotlightTab({ user }: { user: User }) {
             <div><b>Pinned:</b> {pinned.callsign} · Wave {pinned.wave} · {pinned.mapName} {pinned.diffName}{pinned.freeplay ? ' · FREEPLAY' : ''}</div>
             <div className="adm-spot-dim">{pinned.runId}{pinned.pinnedBy ? ` · by ${pinned.pinnedBy}` : ''}</div>
             <div className="adm-spot-row">
-              <a className="adm-mini" href={`/?run=${pinned.runId}`} target="_blank" rel="noreferrer">▶ watch</a>
+              <a className="adm-mini" href={runUrl(pinned.runId)} target="_blank" rel="noreferrer">▶ watch</a>
               <RunIdButton runId={pinned.runId} onInspect={setInspectRunId} label="inspect" />
               <button className="adm-mini" disabled={busy} onClick={() => void clear()}>clear (use automatic)</button>
             </div>
@@ -3593,7 +3594,7 @@ function SpotlightTab({ user }: { user: User }) {
                 <span className="adm-spot-dim">W{r.wave} · {r.mapName} {r.diffName}{r.freeplay ? ' · FP' : ''}</span>
                 <VerifyBadge verify={r.verify} />
                 <RunIdButton runId={r.runId} onInspect={setInspectRunId} label="inspect" />
-                <a className="adm-mini" href={`/?run=${r.runId}`} target="_blank" rel="noreferrer">▶</a>
+                <a className="adm-mini" href={r.runId ? runUrl(r.runId) : '#'} target="_blank" rel="noreferrer">▶</a>
                 <button className="adm-mini" disabled={busy || pinned?.runId === r.runId}
                   onClick={() => void doPin({ runId: r.runId!, callsign: r.name, wave: r.wave, mapName: r.mapName, diffName: r.diffName, freeplay: r.freeplay })}>
                   {pinned?.runId === r.runId ? 'pinned' : 'pin'}

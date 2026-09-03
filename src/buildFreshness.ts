@@ -5,6 +5,8 @@
 // network (no-store) on focus/visibility tells us a newer deploy exists.
 // Navigations are network-first in sw.js, so a plain reload picks it up.
 
+import { baseUrl } from './game/paths';
+
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
 export function currentBuildTag(): string {
@@ -28,7 +30,7 @@ export function watchBuildFreshness(onStale: () => void): () => void {
   const check = async () => {
     if (stopped || notified || document.hidden) return;
     try {
-      const res = await fetch('/build-tag.json', { cache: 'no-store' });
+      const res = await fetch(`${baseUrl()}build-tag.json`, { cache: 'no-store' });
       if (!res.ok) return;
       if (isStaleBuild(currentBuildTag(), await res.json())) {
         notified = true;

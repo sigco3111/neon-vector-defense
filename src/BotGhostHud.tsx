@@ -33,11 +33,13 @@ function signed(n: number): string {
 }
 
 function profileLabel(curve: GhostCurve): string {
-  return `${diffName(curve.diff)} / ${curve.skill}`;
+  const skillKo = curve.skill === 'rookie' ? '입문' : curve.skill === 'standard' ? '표준' : curve.skill === 'expert' ? '전문가' : curve.skill;
+  return `${diffName(curve.diff)} / ${skillKo}`;
 }
 
 function profileShortLabel(curve: GhostCurve): string {
-  return `${curve.skill.toUpperCase()} ${diffName(curve.diff).toUpperCase()}`;
+  const skillKo = curve.skill === 'rookie' ? '입문' : curve.skill === 'standard' ? '표준' : curve.skill === 'expert' ? '전문가' : curve.skill;
+  return `${skillKo} ${diffName(curve.diff).toUpperCase()}`;
 }
 
 function curveStats(curve: GhostCurve) {

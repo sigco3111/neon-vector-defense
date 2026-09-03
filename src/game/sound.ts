@@ -2,6 +2,11 @@
 // No assets: everything is synthesized in WebAudio at runtime.
 
 import { progress } from './storage';
+// Base-aware audio path helper — GH Pages deploys under /neon-vector-defense/,
+// so /audio/x.mp3 hard-codes would 404. Raw paths stay in data; resolution is
+// centralized here.
+import { asset as _asset } from './paths';
+const a = (p: string) => _asset(p);
 
 // Resolve the constructor with the legacy WebKit fallback so audio works on older
 // iOS Safari (which exposed only webkitAudioContext before 14.5).
@@ -19,7 +24,7 @@ let delaySend: GainNode | null = null;
 let musicOn = !progress.musicOff;
 let musicStarted = false;
 
-function ensure(): AudioContext | null {
+export function ensure(): AudioContext | null {
   if (!AudioCtx) return null;
   if (!ctx) {
     ctx = new AudioCtx();
@@ -108,8 +113,8 @@ export function isMuted() { return !sfxOn; }
 // (generate them with scripts/genaudio.mjs once a valid OpenRouter key is in .env.local).
 export interface MusicPack { id: string; name: string; tracks: string[] }
 export const MUSIC_PACKS: MusicPack[] = [
-  { id: 'concord', name: 'Concord Signal', tracks: ['/audio/theme.mp3', '/audio/theme-2.mp3', '/audio/theme-3.mp3'] },
-  { id: 'drift', name: 'Deep Drift', tracks: ['/audio/drift-1.mp3', '/audio/drift-2.mp3', '/audio/drift-3.mp3'] },
+  { id: 'concord', name: '컨코드 시그널', tracks: [a('/audio/theme.mp3'), a('/audio/theme-2.mp3'), a('/audio/theme-3.mp3')] },
+  { id: 'drift', name: '딥 드리프트', tracks: [a('/audio/drift-1.mp3'), a('/audio/drift-2.mp3'), a('/audio/drift-3.mp3')] },
 ];
 function packTracks(): string[] {
   const id = progress.musicPack;
@@ -174,8 +179,8 @@ export function playSectorTheme(mapId: string | null) {
   if (typeof Audio === 'undefined') return;
   bossActive = false;
   const tracks = mapId
-    ? [`/audio/amb-${mapId}.mp3`, ...packTracks().slice(0, 2)]
-    : ['/audio/menu-theme.mp3', ...packTracks()]; // dedicated menu theme leads the menu set
+    ? [a(`/audio/amb-${mapId}.mp3`), ...packTracks().slice(0, 2)]
+    : [a('/audio/menu-theme.mp3'), ...packTracks()]; // dedicated menu theme leads the menu set
   if (musicOn) startPlaylist(tracks);
   else playlist = tracks; // queued for when music returns
 }
@@ -191,7 +196,7 @@ export function setBossMusic(on: boolean): void {
   if (on) {
     preBossPlaylist = playlist;
     if (musicEl) { musicEl.pause(); musicEl = null; }
-    const el = new Audio('/audio/boss-theme.mp3');
+    const el = new Audio(a('/audio/boss-theme.mp3'));
     el.loop = true; el.volume = 0.14;
     el.addEventListener('error', () => { if (musicBus) musicBus.gain.value = 0.3; });
     musicEl = el;
@@ -213,7 +218,7 @@ export function vox(name: string) {
   lastVox = now;
   let el = voxCache[name];
   if (!el) {
-    el = new Audio(`/audio/vox/${name}.mp3`);
+    el = new Audio(a(`/audio/vox/${name}.mp3`));
     el.volume = 0.8;
     voxCache[name] = el;
   }
@@ -222,7 +227,7 @@ export function vox(name: string) {
 }
 
 /** voiced transmission; returns a stopper */
-export function playBriefing(src = '/audio/briefing.mp3'): () => void {
+export function playBriefing(src = a('/audio/briefing.mp3')): () => void {
   if (!sfxOn || typeof Audio === 'undefined') return () => {};
   const el = new Audio(src);
   el.volume = 0.85;
@@ -233,7 +238,7 @@ export function playBriefing(src = '/audio/briefing.mp3'): () => void {
 /** short musical stinger for run endings */
 export function playStinger(name: 'victory' | 'defeat') {
   if (!sfxOn || replaySilent || typeof Audio === 'undefined') return;
-  const el = new Audio(`/audio/stinger-${name}.mp3`);
+  const el = new Audio(a(`/audio/stinger-${name}.mp3`));
   el.volume = 0.4;
   void el.play().catch(() => {});
 }

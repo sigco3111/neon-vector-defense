@@ -55,6 +55,7 @@ import {
 } from '../game/gauntletProtocol';
 
 import { sfx, setMuted, isMuted, setMusic, isMusicOn, playBriefing, playSectorTheme } from '../game/sound';
+import { asset as art } from '../game/paths';
 import { portal, type AdBreakResult, type AdBreakType } from '../game/portal';
 import DossierShare from '../DossierShare';
 import BotGhostHud from '../BotGhostHud';
@@ -73,6 +74,7 @@ import { PERF_MAP, DEMO_MODE, AI_HELP_ENABLED, WIDGET_OPEN_EVENT } from '../appS
 import { utilityWidgetOpen, isTypingTarget } from '../uiShared';
 
 const TARGET_MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
+const TARGET_MODE_LABELS: Record<TargetMode, string> = { first: '선두', last: '후미', strong: '강함', close: '근접' };
 const TARGET_FILTER_LABELS: [TargetFilter, string][] = [
   ['boss', '보스'],
   ['armored', '장갑'],
@@ -147,7 +149,7 @@ function AbilityArt({ id, fallback }: { id: string; fallback: string }) {
   return (
     <img
       className="ability-icon-img"
-      src={`/art/ability-${id}.webp`}
+      src={art(`/art/ability-${id}.webp`)}
       alt=""
       draggable={false}
       onError={() => setFailed(true)}
@@ -1589,7 +1591,7 @@ function FreeplayBuildPanel({
           <b>{fp.nextMutators.length ? fp.nextMutators.map((m) => m.name).join(' + ') : '표준 압박'}</b>
         </div>
         <div className="freeplay-rival-cell">
-          {nextRival && <img className="freeplay-rival-face" src={`/art/rival-${nextRival.id.toLowerCase()}.webp`} alt="" draggable={false} loading="lazy" decoding="async" title={nextRival.desc} />}
+          {nextRival && <img className="freeplay-rival-face" src={art(`/art/rival-${nextRival.id.toLowerCase()}.webp`)} alt="" draggable={false} loading="lazy" decoding="async" title={nextRival.desc} />}
           <div>
             <span>라이벌</span>
             <b>{nextRival ? nextRival.name : nextWave % 10 === 0 ? '신호 형성 중' : '없음'}</b>
@@ -1924,14 +1926,14 @@ function SubmitScore({ game, map, diff, gauntletProtocolRunIds }: { game: Game; 
   const gauntletWeek = game.gauntletChallenge?.week ?? '';
   const gauntletProtocolWeek = game.gauntletProtocol?.week ?? '';
   const leaderboardTitle = gauntletProtocolWeek
-    ? `건틀릿 프로토콜 - ${gauntletProtocolWeek.toUpperCase()}`
+    ? `건틀릿 프로토콜 - ${gauntletProtocolWeek}`
     : gauntletWeek
-    ? `건틀릿 리더보드 - ${gauntletWeek.toUpperCase()}`
+    ? `건틀릿 리더보드 - ${gauntletWeek}`
     : weeklyId
-      ? `위클리 리더보드 - ${weeklyId.toUpperCase()}`
+      ? `위클리 리더보드 - ${weeklyId}`
       : dailyId
-    ? `데일리 리더보드 - ${dailyId.toUpperCase()}`
-    : `글로벌 리더보드 - ${map.name.toUpperCase()} / ${diff.name.toUpperCase()}${game.freeplay ? ' / 프리플레이' : ''}`;
+    ? `데일리 리더보드 - ${dailyId}`
+    : `글로벌 리더보드 - ${map.name} / ${diff.name}${game.freeplay ? ' / 프리플레이' : ''}`;
 
   if (DEMO_MODE) {
     return (
@@ -2337,7 +2339,7 @@ const UpgradePanel = memo(function UpgradePanel({ game, tower, onSold, onCollaps
         {TARGET_MODES.map((m) => (
           <button key={m} className={`tb-btn ${tower.target === m ? 'on' : ''}`}
             onClick={() => { game.setTargetMode(tower, m); sfx.click(); }}>
-            {m.toUpperCase()}
+            {TARGET_MODE_LABELS[m]}
           </button>
         ))}
       </div>

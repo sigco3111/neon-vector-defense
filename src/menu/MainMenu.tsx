@@ -14,6 +14,7 @@ import type { GauntletProtocolRoute } from '../game/gauntletProtocol';
 import { fetchReplayOfTheDay, type ReplaySpotlight } from '../game/replaySpotlight';
 
 import { sfx } from '../game/sound';
+import { asset as art, homeUrl, runUrl } from '../game/paths';
 import OperationsBoard from '../OperationsBoard';
 import Bestiary from '../Bestiary';
 import { meta, rankBandKey } from '../game/meta';
@@ -123,7 +124,7 @@ function ReplayOfTheDayCard() {
         <div className="replay-of-day-title">{spot.callsign} · Wave {spot.wave}</div>
         <div className="replay-of-day-rules">{spot.mapName} · {spot.diffName}</div>
       </div>
-      <a className="replay-of-day-watch" href={`/?run=${spot.runId}`} title="오늘의 추천 배틀플랜 관전">▶ 관전</a>
+      <a className="replay-of-day-watch" href={runUrl(spot.runId)} title="오늘의 추천 배틀플랜 관전">▶ 관전</a>
     </div>
   );
 }
@@ -134,7 +135,7 @@ function CommanderDossierRail({ onOpenOps }: { onOpenOps: () => void }) {
   return (
     <aside className="commander-rail" data-testid="commander-rail">
       <button className="rail-rank" onClick={onOpenOps} title="운영 열기">
-        <img className="rail-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} decoding="async" />
+        <img className="rail-rank-crest" src={art(`/art/rank-${rankBandKey(rank.rank)}.webp`)} alt="" draggable={false} decoding="async" />
         <span>
           <b>{rank.title}</b>
           <i><span style={{ width: `${rank.pct * 100}%` }} /></i>
@@ -142,7 +143,7 @@ function CommanderDossierRail({ onOpenOps }: { onOpenOps: () => void }) {
       </button>
       <div className="rail-wallet">
         <span><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()} 인양물</span>
-        <span>{streak.current} 일일 감시</span>
+        <span>{streak.current}일 연속 출격</span>
       </div>
       <div className="rail-stats">
         <div><b>{progress.record.victories}</b><span>지킨 등대 수</span></div>
@@ -200,22 +201,22 @@ function WeeklyOpsSection(props: {
         data-testid="weekly-gauntlet-card"
         aria-pressed={props.deployMode === 'gauntlet'}
         aria-disabled={!props.gauntlet}
-        title={props.gauntlet ? `Beat ${props.gauntlet.callsign}'s Wave ${props.gauntlet.wave}` : '아직 주간 챔피언 건틀릿 우승자가 없습니다.'}
+        title={props.gauntlet ? `${props.gauntlet.callsign}의 웨이브 ${props.gauntlet.wave} 돌파` : '아직 주간 챔피언 건틀릿 우승자가 없습니다.'}
         onClick={() => { if (props.gauntlet) { props.setDeployMode('gauntlet'); sfx.click(); } }}
       >
         <span>챔피언 건틀릿</span>
-        <b>{props.gauntlet ? `Beat ${props.gauntlet.callsign}'s Wave ${props.gauntlet.wave}` : '아직 우승자가 없습니다'}</b>
+        <b>{props.gauntlet ? `${props.gauntlet.callsign}의 웨이브 ${props.gauntlet.wave} 돌파` : '아직 우승자가 없습니다'}</b>
       </button>
       <button
         className={`weekly-op-card ${props.deployMode === 'gauntletProtocol' ? 'active' : ''}`}
         data-testid="gauntlet-protocol-card"
         aria-pressed={props.deployMode === 'gauntletProtocol'}
         aria-disabled={!props.gauntletProtocolUnlocked}
-        title={props.gauntletProtocolUnlocked ? `Route: ${routeNames(props.gauntletProtocol.route)}` : '캠페인 클리어 필요'}
+        title={props.gauntletProtocolUnlocked ? `경로: ${routeNames(props.gauntletProtocol.route)}` : '캠페인 클리어 필요'}
         onClick={() => { if (props.gauntletProtocolUnlocked) { props.setDeployMode('gauntletProtocol'); sfx.click(); } }}
       >
         <span>건틀릿 프로토콜</span>
-        <b>{props.gauntletProtocolUnlocked ? `Route: ${routeNames(props.gauntletProtocol.route)}` : '캠페인 클리어 필요'}</b>
+        <b>{props.gauntletProtocolUnlocked ? `경로: ${routeNames(props.gauntletProtocol.route)}` : '캠페인 클리어 필요'}</b>
       </button>
     </div>
   );
@@ -433,7 +434,7 @@ function SectorAtlas(props: {
         <p>{selectedMap.desc}</p>
         <div className="dock-stat-grid">
           <div><span>최고 웨이브</span><b>{selectedBest > 0 ? `W${selectedBest}` : '-'}</b></div>
-          <div><span>난이도</span><b>{selectedMap.difficulty}</b></div>
+          <div><span>난이도</span><b>{selectedMap.difficulty === 'Easy' ? '쉬움' : selectedMap.difficulty === 'Medium' ? '보통' : selectedMap.difficulty === 'Hard' ? '어려움' : selectedMap.difficulty}</b></div>
         </div>
         <div className="dock-tabs" role="tablist" aria-label="출격 옵션">
           <button
@@ -481,7 +482,7 @@ function SectorAtlas(props: {
               >
                 {!active && props.firstTime && d.id === 'easy' && <span className="start-pill">추천</span>}
                 <span className="diff-name">{d.name}</span>
-                <span className="diff-desc">{d.waves} waves · best {progress.best(selectedMap.id, d.id) ? `W${progress.best(selectedMap.id, d.id)}` : '—'}</span>
+                <span className="diff-desc">{d.waves} 웨이브 · 최고 {progress.best(selectedMap.id, d.id) ? `W${progress.best(selectedMap.id, d.id)}` : '—'}</span>
               </button>
             );
           })}
@@ -615,7 +616,7 @@ export function MainMenu(props: {
             const rank = meta.rank; const streak = meta.streak;
             return (
               <button className="menu-rank-strip" onClick={() => { setTab('ops'); sfx.click(); }} title="운영 열기">
-                <img className="menu-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} decoding="async" />
+                <img className="menu-rank-crest" src={art(`/art/rank-${rankBandKey(rank.rank)}.webp`)} alt="" draggable={false} decoding="async" />
                 <span className="menu-rank-title">{rank.title}</span>
                 <span className="menu-rank-bar"><span className="menu-rank-fill" style={{ width: `${rank.pct * 100}%` }} /></span>
                 <span className="menu-rank-meta"><i className="ico-diamond" aria-hidden="true" /> {meta.salvage.toLocaleString()}{streak.current > 0 ? ` · 🔥 ${streak.current}` : ''}</span>
@@ -685,7 +686,7 @@ export function MainMenu(props: {
       {tab === 'deploy' && <div className="deploy-bar">
         <div className="deploy-bar-inner">
           <div className="menu-legal">
-            {!IS_PORTAL_BUILD && <a href="/privacy">개인정보 처리방침 및 데이터 선택</a>}
+            {!IS_PORTAL_BUILD && <a href={homeUrl() + "privacy"}>개인정보 처리방침 및 데이터 선택</a>}
           </div>
           <div className="deploy-bar-sel">
             <span className="dbar-label">출격 지역</span>

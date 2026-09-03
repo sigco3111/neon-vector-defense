@@ -4,6 +4,8 @@ import './index.css';
 import App from './App';
 import { applyAccessibility } from './game/settings';
 import { applyAccent } from './game/palette';
+import { baseUrl } from './game/paths';
+import { ensure as ensureAudio } from './game/sound';
 import { loadRemoteBalance } from './game/balanceConfig';
 import { loadRemoteDailyOverride } from './game/dailyChallenge';
 import { loadRemoteWeeklyGauntlet, loadRemoteWeeklyOverride } from './game/weeklyChallenge';
@@ -70,9 +72,15 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
+// First user gesture must unlock the AudioContext (browser autoplay policy).
+let audioUnlocked = false;
+const unlockAudio = () => { if (audioUnlocked) return; audioUnlocked = true; ensureAudio(); window.removeEventListener('pointerdown', unlockAudio); window.removeEventListener('keydown', unlockAudio); };
+window.addEventListener('pointerdown', unlockAudio, { passive: true });
+window.addEventListener('keydown', unlockAudio);
+
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js').catch((error) => {
+    void navigator.serviceWorker.register(`${baseUrl()}sw.js`).catch((error) => {
       console.warn('Service worker registration failed', error);
     });
   });

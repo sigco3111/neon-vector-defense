@@ -13,6 +13,8 @@ import { displayedMapTheme } from './mapThemes';
 import type { Game } from './engine';
 import type { PublicRunDoc, RunOutcome } from './runTelemetry';
 import type { TowerDef } from './types';
+import { homeUrl } from './paths';
+
 
 /** hex (#rgb/#rrggbb) → rgba() string for translucent accent fills. */
 function hexA(hex: string, a: number): string {
@@ -42,9 +44,9 @@ export interface DossierInput {
 const CARD_W = 1200, CARD_H = 630;
 
 const OUTCOME: Record<RunOutcome, { word: string; color: string }> = {
-  victory: { word: 'SECTOR SECURED', color: '#2ed573' },
-  gameover: { word: 'GRID OFFLINE', color: '#ff4757' },
-  abandoned: { word: 'SIGNAL LOST', color: '#9aa6c8' },
+  victory: { word: '섹터 확보', color: '#2ed573' },
+  gameover: { word: '그리드 오프라인', color: '#ff4757' },
+  abandoned: { word: '신호 손실', color: '#9aa6c8' },
 };
 
 export function buildDossierInputFromRun(run: PublicRunDoc): DossierInput {
@@ -122,7 +124,7 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
   drawMiniLane(ctx, input, th, panel);
   ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
   ctx.fillStyle = '#9fb2dd'; ctx.font = "13px 'Orbitron', sans-serif";
-  ctx.fillText('BATTLE MAP', panel.x + 2, panel.y - 8);
+  ctx.fillText('배틀 맵', panel.x + 2, panel.y - 8);
 
   // neon frame (palette-tinted)
   ctx.strokeStyle = accent; ctx.lineWidth = 4; ctx.strokeRect(14, 14, CARD_W - 28, CARD_H - 28);
@@ -132,7 +134,7 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = hexA(accent, 0.85);
   ctx.font = "16px 'Orbitron', sans-serif";
-  ctx.fillText('LANTERN SEVEN · MISSION DOSSIER', 48, 64);
+  ctx.fillText('랜턴 7호 · 미션 도시에', 48, 64);
   ctx.fillStyle = oc.color;
   ctx.font = "700 60px 'Orbitron', sans-serif";
   ctx.shadowColor = oc.color; ctx.shadowBlur = 24;
@@ -148,11 +150,11 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
 
   // stat strip
   const stats = [
-    { g: '◈', label: 'WAVE', v: `${input.wave}` },
-    { g: '☠', label: 'HULLS', v: input.kills.toLocaleString() },
-    { g: '⌬', label: 'CREDITS', v: Math.round(input.cashEarned).toLocaleString() },
-    { g: '⬢', label: 'CORES', v: `${input.coresLeft}` },
-    { g: '⏱', label: 'TIME', v: fmtDur(input.durationS) },
+    { g: '◈', label: '웨이브', v: `${input.wave}` },
+    { g: '☠', label: '격파', v: input.kills.toLocaleString() },
+    { g: '⌬', label: '크레딧', v: Math.round(input.cashEarned).toLocaleString() },
+    { g: '⬢', label: '코어', v: `${input.coresLeft}` },
+    { g: '⏱', label: '시간', v: fmtDur(input.durationS) },
   ];
   const sxStart = 48; const sy = 238;
   // keep the strip clear of the BATTLE MAP panel (x=700); compress the gaps if huge
@@ -174,12 +176,12 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
 
   // top-3 carrying towers — full-width bars (the map now lives top-right)
   ctx.fillStyle = '#9fb2dd'; ctx.font = "14px 'Orbitron', sans-serif";
-  ctx.fillText('TOP INSTRUMENTS', 48, 344);
+  ctx.fillText('주력 타워', 48, 344);
   let ty = 364;
   const rowW = CARD_W - 48;
   if (input.topTowers.length === 0) {
     ctx.fillStyle = '#566089'; ctx.font = "16px sans-serif";
-    ctx.fillText('No shots fired.', 60, ty + 30);
+    ctx.fillText('발사 기록 없음.', 60, ty + 30);
   }
   for (const tw of input.topTowers) {
     // icon
@@ -205,16 +207,16 @@ export async function renderDossierCanvas(input: DossierInput): Promise<HTMLCanv
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
   ctx.fillStyle = hexA(accent, 0.95); ctx.font = "700 18px 'Orbitron', sans-serif";
-  ctx.fillText('LANTERN 7', 48, CARD_H - 30);
+  ctx.fillText('랜턴 7호', 48, CARD_H - 30);
   ctx.textAlign = 'right';
   if (input.runId) {
     // stamp the deep-link so the image alone routes viewers back to the replay
     const url = dossierShareUrl(input.runId).replace(/^https?:\/\//, '');
     ctx.fillStyle = hexA(accent, 0.9); ctx.font = "15px 'Orbitron', sans-serif";
-    ctx.fillText(`▶ WATCH  ${url}`, CARD_W - 48, CARD_H - 30);
+    ctx.fillText(`▶ 관전  ${url}`, CARD_W - 48, CARD_H - 30);
   } else {
     ctx.fillStyle = '#8295bd'; ctx.font = "15px system-ui, -apple-system, sans-serif";
-    ctx.fillText('Hold the last lighthouse.', CARD_W - 48, CARD_H - 30);
+    ctx.fillText('마지막 등대를 지켜라.', CARD_W - 48, CARD_H - 30);
   }
   ctx.textAlign = 'left';
 
@@ -276,6 +278,5 @@ export async function dossierBlob(input: DossierInput): Promise<Blob | null> {
 }
 
 export function dossierShareUrl(runId: string): string {
-  const origin = typeof location !== 'undefined' ? location.origin : 'https://neon-vector-defense-7.web.app';
-  return `${origin}/?run=${runId}`;
+  return `${homeUrl()}?run=${runId}`;
 }

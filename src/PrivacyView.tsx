@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { consentState, setSell, gpcActive, resetConsent } from './game/consent';
 import { sfx } from './game/sound';
+import { pathnameUnderBase, homeUrl } from './game/paths';
 
 /** /privacy route check, mirroring the admin pathname fork. */
 export function isPrivacyRoute(): boolean {
-  return typeof location !== 'undefined' && location.pathname.replace(/\/+$/, '') === '/privacy';
+  return pathnameUnderBase() === '/privacy';
 }
 
 const LOCAL_KEYS = [
@@ -77,7 +78,7 @@ export default function PrivacyView() {
   return (
     <div className="privacy-root">
       <div className="privacy-box">
-        <button className="privacy-back" onClick={() => { location.href = '/'; }}>← 게임으로</button>
+        <button className="privacy-back" onClick={() => { location.href = homeUrl(); }}>← 게임으로</button>
         <h1 className="privacy-title">개인정보 처리방침</h1>
         <p className="privacy-meta">랜턴 세븐 · 최종 업데이트 2026 · 미국 플레이어</p>
 

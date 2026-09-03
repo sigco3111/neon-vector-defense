@@ -6,6 +6,7 @@ import { cachedServerUid } from '../game/anonAuth';
 import { progress } from '../game/storage';
 import { appMetrics } from '../game/metrics';
 import { sfx } from '../game/sound';
+import { runUrl } from '../game/paths';
 import type { GameMap, DifficultyDef } from '../game/types';
 import { isRunId } from '../appShared';
 
@@ -29,7 +30,7 @@ function BoardName({ r, mine, fp }: { r: ScoreEntry; mine: boolean; fp: boolean 
 function WatchCell({ runId }: { runId?: string }) {
   return (
     <span className="board-watch">
-      {isRunId(runId) ? <a className="watch-btn" href={`/?run=${runId}`} title="이 배틀플랜 관전">▶ 관전</a> : null}
+      {isRunId(runId) ? <a className="watch-btn" href={runUrl(runId)} title="이 배틀플랜 관전">▶ 관전</a> : null}
     </span>
   );
 }

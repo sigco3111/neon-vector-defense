@@ -8,6 +8,7 @@ import { appMetrics } from './game/metrics';
 import { dailyChallenge, dailyChallengeSignature, loadRemoteDailyOverride } from './game/dailyChallenge';
 import { THE_YAKKOB } from './game/yakkob';
 import { protocolDrills, type ProtocolDrill } from './game/protocolDrills';
+import { homeUrl } from './game/paths';
 import {
   loadRemoteWeeklyGauntlet,
   loadRemoteWeeklyOverride,
@@ -74,11 +75,11 @@ function RouteFallback({ label }: { label: string }) {
 }
 
 export default function App() {
-  if (ADMIN) return <Suspense fallback={<RouteFallback label="LOADING OPERATIONS" />}><AdminDashboard /></Suspense>;
-  if (isPrivacyRoute()) return <Suspense fallback={<RouteFallback label="LOADING PRIVACY" />}><PrivacyView /></Suspense>;
+  if (ADMIN) return <Suspense fallback={<RouteFallback label="운영 보드 로딩 중" />}><AdminDashboard /></Suspense>;
+  if (isPrivacyRoute()) return <Suspense fallback={<RouteFallback label="개인정보 처리방침 로딩 중" />}><PrivacyView /></Suspense>;
   // Public, read-only replay — writes nothing, so it bypasses the AgeGate like /privacy.
   const watchId = runIdFromUrl();
-  if (watchId) return <Suspense fallback={<RouteFallback label="LOADING REPLAY" />}><ReplayViewer runId={watchId} onExit={() => { location.href = '/'; }} /></Suspense>;
+  if (watchId) return <Suspense fallback={<RouteFallback label="배틀플랜 로딩 중" />}><ReplayViewer runId={watchId} onExit={() => { location.href = homeUrl(); }} /></Suspense>;
   return <Gate />;
 }
 
@@ -258,8 +259,8 @@ function Main() {
       )}
       {staleBuild && screen === 'menu' && (
         <div className="update-toast" role="status" aria-live="polite" data-testid="update-toast">
-          <span>A new build of Lantern Seven is live.</span>
-          <button className="start-btn small" onClick={() => window.location.reload()}>RELOAD ▸</button>
+          <span>랜턴 7호의 새 빌드가 배포되었습니다.</span>
+          <button className="start-btn small" onClick={() => window.location.reload()}>새로고침 ▸</button>
           <button className="update-toast-x" aria-label="Dismiss update notice" onClick={() => setStaleBuild(false)}>✕</button>
         </div>
       )}
@@ -271,12 +272,12 @@ function ComebackPrompt({ onClose }: { onClose: () => void }) {
   const streak = meta.streak;
   return (
     <Modal onClose={onClose} overlayClass="cutscene-overlay" boxClass="cutscene-box tip-box" labelledBy="comeback-title">
-      <div className="cutscene-title" id="comeback-title" style={{ color: 'var(--gold)' }}>⚠ THE LANTERN DIMMED</div>
+      <div className="cutscene-title" id="comeback-title" style={{ color: 'var(--gold)' }}>⚠ 등대가 흐려졌습니다</div>
       <p className="tip-text">
         You held a <b>{streak.best}-day watch</b> over Lantern Seven before the signal lapsed.
         The Combine never sleeps, Warden — light the beacon again today to start a new streak.
       </p>
-      <button className="start-btn small" onClick={onClose}>RESUME THE WATCH ▸</button>
+      <button className="start-btn small" onClick={onClose}>감시 재개 ▸</button>
     </Modal>
   );
 }

@@ -3,6 +3,7 @@ import { renderDossierCanvas, dossierBlob, dossierShareUrl, type DossierInput } 
 import { sfx } from './game/sound';
 import { IS_PORTAL_BUILD } from './game/portal';
 
+
 // Share row for a Mission Dossier. The PNG is the real shareable artifact (works with no
 // server); the ?run= link is offered only when the run was actually uploaded (runId present).
 // Every action is feature-detected and try/caught — it must never throw inside an overlay.
@@ -46,13 +47,13 @@ export default function DossierShare({ input, runId, compact }: { input: Dossier
     try {
       const b = await getBlob(); if (!b) return flash('Render failed', 'err');
       const file = new File([b], fileName, { type: 'image/png' });
-      const text = `Wave ${input.wave} · ${input.kills.toLocaleString()} hulls on ${input.mapName}`;
+      const text = `웨이브 ${input.wave} · ${input.kills.toLocaleString()}척 격파 (${input.mapName})`;
       const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
       const canFiles = typeof nav.canShare === 'function' && nav.canShare({ files: [file] });
       if (canFiles) {
-        await navigator.share({ title: 'Lantern 7', text, files: [file], ...(url ? { url } : {}) });
+        await navigator.share({ title: '랜턴 7호', text, files: [file], ...(url ? { url } : {}) });
       } else if (typeof nav.share === 'function') {
-        await navigator.share({ title: 'Lantern 7', text, ...(url ? { url } : {}) });
+        await navigator.share({ title: '랜턴 7호', text, ...(url ? { url } : {}) });
       } else { return await onCopyCard(); }
       flash('공유 창 열림');
     } catch { flash('공유 취소 또는 사용 불가', 'info'); }

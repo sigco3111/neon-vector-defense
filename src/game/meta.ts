@@ -87,7 +87,9 @@ function ensureSeeded() {
 
 // ---- rank curve ----
 export interface RankInfo { rank: number; title: string; xpIntoRank: number; xpForRank: number; totalXp: number; pct: number; }
-const RANK_BANDS = ['Recruit', 'Sentinel', 'Warden', 'Vanguard', 'Architect', 'Luminary', 'Ascendant'];
+const RANK_BANDS_EN = ['recruit', 'sentinel', 'warden', 'vanguard', 'architect', 'luminary', 'ascendant'];
+const RANK_BANDS_KO = ['신병', '감시자', '워든', '선봉', '건축가', '봉화', '격상자'];
+const RANK_BANDS = RANK_BANDS_EN;
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 const MAX_RANK = RANK_BANDS.length * ROMAN.length; // 35 = "Ascendant V" ceiling — rank can never overflow
 
@@ -100,7 +102,7 @@ export function rankTitle(rank: number): string {
   const r = Math.max(1, Math.min(MAX_RANK, rank));
   const band = Math.min(RANK_BANDS.length - 1, Math.floor((r - 1) / ROMAN.length));
   const sub = Math.min(ROMAN.length - 1, (r - 1) % ROMAN.length);
-  return `${RANK_BANDS[band]} ${ROMAN[sub]}`;
+  return `${RANK_BANDS_KO[band]} ${ROMAN[sub]}`;
 }
 /** band key for the rank-crest asset path (/art/rank-<key>.webp) */
 export function rankBandKey(rank: number): string {
@@ -138,10 +140,10 @@ export function deriveRunReward(input: RunRewardInput): RunMetaReward {
   const breakdown: { label: string; xp: number; salvage: number }[] = [];
   const add = (label: string, xp: number, salvage: number) => breakdown.push({ label, xp: Math.round(xp), salvage: Math.round(salvage) });
 
-  add(`Wave ${input.wave}`, input.wave * 10 * mult, input.wave * 2);
-  add(`${input.kills.toLocaleString()} hulls`, input.kills * 1 * mult, input.cashEarned / 200);
-  if (input.won) add('Sector held', 250 * mult, 60);
-  if (input.bonusSalvage) add('Target practice', 0, Math.max(0, Math.floor(input.bonusSalvage)));
+  add(`웨이브 ${input.wave}`, input.wave * 10 * mult, input.wave * 2);
+  add(`${input.kills.toLocaleString()}척 격파`, input.kills * 1 * mult, input.cashEarned / 200);
+  if (input.won) add('섹터 방어 성공', 250 * mult, 60);
+  if (input.bonusSalvage) add('타겟 훈련', 0, Math.max(0, Math.floor(input.bonusSalvage)));
   const xp = breakdown.reduce((s, b) => s + b.xp, 0);
   const salvage = breakdown.reduce((s, b) => s + b.salvage, 0);
   return { xp: Math.round(xp), salvage: Math.round(salvage), breakdown };
@@ -160,14 +162,14 @@ export interface QuestRunExtras { towerKindsUsed: number; abilitiesCast: number;
 
 // metric → { copy, [dailyBase, weeklyBase], jitter steps, max-type? }
 const METRICS: Record<QuestMetric, { verb: (n: number) => string; daily: number; weekly: number; step: number; max?: boolean; scope?: { freeplay?: boolean } }> = {
-  wavesCleared: { verb: (n) => `Clear ${n} waves`, daily: 20, weekly: 120, step: 5 },
-  kills: { verb: (n) => `Destroy ${n.toLocaleString()} hulls`, daily: 600, weekly: 4000, step: 100 },
-  runsCompleted: { verb: (n) => `Complete ${n} runs`, daily: 2, weekly: 10, step: 1 },
-  campaignWins: { verb: (n) => `Win ${n} campaign${n > 1 ? 's' : ''}`, daily: 1, weekly: 3, step: 1 },
-  freeplayWave: { verb: (n) => `Reach wave ${n} in Freeplay`, daily: 25, weekly: 45, step: 5, max: true, scope: { freeplay: true } },
-  towerKindsUsed: { verb: (n) => `Field ${n} tower types in a run`, daily: 5, weekly: 8, step: 1, max: true },
-  abilitiesCast: { verb: (n) => `Invoke ${n} commander abilities`, daily: 8, weekly: 40, step: 2 },
-  reachWave: { verb: (n) => `Reach wave ${n}`, daily: 18, weekly: 35, step: 3, max: true },
+  wavesCleared: { verb: (n) => `${n}개 웨이브 클리어`, daily: 20, weekly: 120, step: 5 },
+  kills: { verb: (n) => `${n.toLocaleString()}척 격파`, daily: 600, weekly: 4000, step: 100 },
+  runsCompleted: { verb: (n) => `런 ${n}회 완수`, daily: 2, weekly: 10, step: 1 },
+  campaignWins: { verb: (n) => `캠페인 ${n}회 승리`, daily: 1, weekly: 3, step: 1 },
+  freeplayWave: { verb: (n) => `프리플레이 웨이브 ${n} 도달`, daily: 25, weekly: 45, step: 5, max: true, scope: { freeplay: true } },
+  towerKindsUsed: { verb: (n) => `한 런에 타워 ${n}종 사용`, daily: 5, weekly: 8, step: 1, max: true },
+  abilitiesCast: { verb: (n) => `커맨더 능력 ${n}회 발동`, daily: 8, weekly: 40, step: 2 },
+  reachWave: { verb: (n) => `웨이브 ${n} 도달`, daily: 18, weekly: 35, step: 3, max: true },
 };
 const DAILY_POOL: QuestMetric[] = ['wavesCleared', 'kills', 'runsCompleted', 'reachWave', 'abilitiesCast', 'towerKindsUsed'];
 const WEEKLY_POOL: QuestMetric[] = ['kills', 'campaignWins', 'wavesCleared', 'reachWave', 'freeplayWave'];
@@ -195,7 +197,7 @@ function makeQuest(period: QuestPeriod, key: string, slot: number, metric: Quest
     id: `q-${period === 'daily' ? 'd' : 'w'}-${key}-${slot}`,
     period, metric, target,
     title: m.verb(target),
-    desc: period === 'daily' ? 'Daily operation' : 'Weekly operation',
+    desc: period === 'daily' ? '일일 작전' : '주간 작전',
     rewardXp: Math.round(rewardXp), rewardSalvage: Math.round(rewardSalvage),
     scope: m.scope,
   };

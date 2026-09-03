@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { meta, rankBandKey, type QuestWithProgress, type RunMetaReward } from './game/meta';
 import { PALETTES, applyAccent } from './game/palette';
 import { sfx } from './game/sound';
+import { asset as art } from './game/paths';
 import SignalSkinPicker from './ui/SignalSkinPicker';
 import MapThemePicker from './ui/MapThemePicker';
 
@@ -58,7 +59,7 @@ export default function OperationsBoard({ onClaimed }: { onClaimed?: () => void 
     <div className="ops-tab" data-testid="ops-tab">
       <div className="ops-head">
         <div className="ops-rank" data-testid="rank-bar">
-          <img className="ops-rank-crest" src={`/art/rank-${rankBandKey(rank.rank)}.webp`} alt="" draggable={false} />
+          <img className="ops-rank-crest" src={art(`/art/rank-${rankBandKey(rank.rank)}.webp`)} alt="" draggable={false} />
           <div className="ops-rank-body">
             <div className="ops-rank-top">
               <span className="ops-rank-title">{rank.title}</span>
