@@ -16,7 +16,7 @@ jobs:
   verify:
     name: Commit Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -36,8 +36,6 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Build App
         run: npm run build
-      - name: Playwright E2E
-        run: npm test
       - name: CI Guardrails
         run: npm run test:jest
       - name: Meta Progression Checks
@@ -62,6 +60,29 @@ jobs:
         run: npm run typecheck:all
       - name: High Severity Audit
         run: npm run audit:high
+
+  # Playwright E2E moved to its own job — it dominates runtime (~30 min) and was
+  # crowding the verify job past the GitHub-hosted runner's max job duration.
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install Dependencies
+        run: npm ci
+      - name: Install Browser
+        run: npx playwright install --with-deps chromium
+      - name: Build App
+        run: npm run build
+      - name: Playwright E2E
+        run: npm test
       - name: Upload test artifacts
         if: failure()
         uses: actions/upload-artifact@v7
