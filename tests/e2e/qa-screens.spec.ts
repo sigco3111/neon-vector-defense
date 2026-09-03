@@ -220,7 +220,7 @@ test.describe('QA audit screen screenshots', () => {
 
       await page.getByRole('button', { name: /^LEADERBOARD/ }).click();
       await expect(page.locator('.board-tab')).toBeVisible();
-      await expect(page.locator('.board-title')).toContainText('GLOBAL LEADERBOARD');
+      await expect(page.locator('.board-title')).toContainText('글로벌 리더보드');
       await capture(page, testInfo, '03-leaderboard-tab-shell');
 
       await page.getByRole('button', { name: /^OPERATIONS/ }).click();
@@ -314,7 +314,7 @@ test.describe('QA audit screen screenshots', () => {
         game.runStats.abilitiesCast = 30;
         game.runStats.cashEarned = 105786;
       });
-      await expect(page.getByRole('heading', { name: 'SECTOR SECURED' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '섹터 확보' })).toBeVisible();
       await capture(page, testInfo, '16-victory-debrief');
 
       await page.evaluate(() => {
@@ -330,7 +330,7 @@ test.describe('QA audit screen screenshots', () => {
         game.runStats.abilitiesCast = 1;
         game.runStats.cashEarned = 760;
       });
-      await expect(page.getByRole('heading', { name: 'GRID OFFLINE' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '그리드 오프라인' })).toBeVisible();
       await capture(page, testInfo, '17-defeat-debrief');
     });
 

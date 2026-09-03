@@ -193,15 +193,15 @@ describe('CI/CD guardrails', () => {
   });
 
   test('privacy copy discloses AI helper provider flow', () => {
-    expect(privacyView).toContain('AI help');
+    expect(privacyView).toContain('AI 도움');
     expect(privacyView).toContain('Cloudflare Worker');
     expect(privacyView).toContain('OpenRouter');
-    expect(privacyView).toContain('gameplay context');
+    expect(privacyView).toContain('게임플레이 컨텍스트');
   });
 
   test('privacy controls include replay score tokens in local export and delete', () => {
     expect(privacyView).toContain("'nvd-replay-tokens-v1'");
-    expect(privacyView).toContain('private score-retry tokens');
+    expect(privacyView).toContain('비공개 점수 재시도 토큰');
   });
 
   test('leaderboard rows can highlight the current player', () => {

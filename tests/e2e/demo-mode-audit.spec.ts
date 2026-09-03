@@ -160,7 +160,7 @@ async function assertUnlockedProtocolsAndChallenges(page: Page) {
   await page.getByTestId('dock-tab-challenges').click();
   await expect(page.getByTestId('diff-card-daily')).toBeVisible();
   await page.getByTestId('diff-card-daily').click();
-  await expect(page.locator('.deploy-bar-sel')).toContainText('DAILY CHALLENGE');
+  await expect(page.locator('.deploy-bar-sel')).toContainText('데일리 챌린지');
 
   await expect(page.getByTestId('weekly-mutation-card')).toBeVisible();
   await page.getByTestId('weekly-mutation-card').click();
@@ -169,17 +169,17 @@ async function assertUnlockedProtocolsAndChallenges(page: Page) {
   const champion = page.getByTestId('weekly-gauntlet-card');
   await expect(champion).toBeVisible();
   const championDisabled = await champion.getAttribute('aria-disabled');
-  if (championDisabled === 'true') await expect(champion).toContainText('Not crowned yet');
+  if (championDisabled === 'true') await expect(champion).toContainText('아직 챔피언이 없습니다');
   else {
     await champion.click();
-    await expect(page.locator('.deploy-bar-sel')).toContainText('CHAMPION GAUNTLET');
+    await expect(page.locator('.deploy-bar-sel')).toContainText('챔피언 건틀릿');
   }
 
   const protocol = page.getByTestId('gauntlet-protocol-card');
   await expect(protocol).toBeVisible();
   await expect(protocol).toHaveAttribute('aria-disabled', 'false');
   await protocol.click();
-  await expect(page.locator('.deploy-bar-sel')).toContainText('GAUNTLET PROTOCOL');
+  await expect(page.locator('.deploy-bar-sel')).toContainText('건틀릿 프로토콜');
 }
 
 async function canvasPoint(page: Page, offset = 0) {
@@ -269,7 +269,7 @@ async function exerciseCombatRun(page: Page, options: { mapId: string; outcome: 
     game.phase = outcome;
     game.finishRun(outcome === 'victory', outcome);
   }, options);
-  await expect(page.getByRole('heading', { name: options.outcome === 'victory' ? 'SECTOR SECURED' : 'GRID OFFLINE' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: options.outcome === 'victory' ? '섹터 확보' : '그리드 오프라인' })).toBeVisible();
   if (options.outcome === 'victory') {
     await expect(page.getByText('Leaderboard submission is disabled in demo mode')).toBeVisible();
   }
@@ -317,7 +317,7 @@ async function exerciseReplayPath(page: Page) {
   }
 }
 
-test.describe('recruiter demo-mode audit', () => {
+test.describe('리크루터 데모-mode audit', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await prepareViewport(page, testInfo);
     await clearNvdState(page);
@@ -330,7 +330,7 @@ test.describe('recruiter demo-mode audit', () => {
     await page.goto('/?demo=1');
     await expect(page.getByRole('dialog', { name: 'BEFORE YOU DEPLOY' })).toHaveCount(0);
     await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('RECRUITER DEMO')).toBeVisible();
+    await expect(page.getByText('리크루터 데모')).toBeVisible();
     await expectNoAuditFailures(page, guards);
 
     await assertDeployBarOnlyOnDeployTab(page);
@@ -354,7 +354,7 @@ test.describe('recruiter demo-mode audit', () => {
 
     await exerciseCombatRun(page, { mapId: 'foundry', outcome: 'gameover', terminalWave: 7 });
     await page.setViewportSize(testInfo.project.name.includes('mobile') ? LANDSCAPE : DESKTOP);
-    await expect(page.getByRole('heading', { name: 'GRID OFFLINE' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '그리드 오프라인' })).toBeVisible();
     await expectNoAuditFailures(page, guards);
     await page.getByRole('button', { name: 'MAIN MENU' }).click();
     await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });

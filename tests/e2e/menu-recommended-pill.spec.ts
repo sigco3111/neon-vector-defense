@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Regression guard for the first-time "RECOMMENDED" protocol pill.
+// Regression guard for the first-time "추천" protocol pill.
 //
 // Bug (2026-07-20 NVD feedback): the difficulty dock became a two-column grid
 // (.diff-card.atlas-protocol-row: `name | desc`), but the static .start-pill was
@@ -10,13 +10,13 @@ import { expect, test, type Page } from '@playwright/test';
 //
 // The pill only renders for a first-time player (progress.runs < 1) AND only on
 // a NON-active protocol card, so we seed a fresh player and select Veteran to
-// expose the RECOMMENDED pill on the Recruit card — exactly the reported state.
+// expose the 추천 pill on the Recruit card — exactly the reported state.
 
 const firstTimeProgress = {
   archive: [],
   best: {},
   totalWaves: 0,
-  runs: 0, // < 1 => firstTime => RECOMMENDED / START HERE pills render
+  runs: 0, // < 1 => firstTime => 추천 / START HERE pills render
   victories: 0,
   kills: 0,
   blueprints: {},
@@ -38,20 +38,20 @@ async function seedFirstTimePlayer(page: Page) {
   }, firstTimeProgress);
 }
 
-test.describe('first-time RECOMMENDED protocol pill', () => {
+test.describe('first-time 추천 protocol pill', () => {
   test('pill sits on its own row and never collides with the protocol name', async ({ page }) => {
     await seedFirstTimePlayer(page);
     await page.goto('/');
     await expect(page.getByTestId('deploy-button')).toBeVisible();
 
     // Recruit (easy) is the default-active protocol, which suppresses its own
-    // pill (`!active` guard). Selecting Veteran (normal) exposes RECOMMENDED on
+    // pill (`!active` guard). Selecting Veteran (normal) exposes 추천 on
     // the Recruit card — the exact state from the bug report.
     await page.getByTestId('diff-card-normal').click();
 
     const pill = page.locator('[data-testid="diff-card-easy"] .start-pill');
-    await expect(pill, 'RECOMMENDED pill should render for a first-time player').toBeVisible();
-    await expect(pill).toHaveText(/RECOMMENDED/);
+    await expect(pill, '추천 pill should render for a first-time player').toBeVisible();
+    await expect(pill).toHaveText(/추천/);
 
     const geom = await page.evaluate(() => {
       const card = document.querySelector('[data-testid="diff-card-easy"]') as HTMLElement;

@@ -1340,7 +1340,7 @@ test.describe('run telemetry model', () => {
     await page.getByTestId('diff-card-daily').click();
     await expect(page.getByTestId('diff-card-daily')).toHaveClass(/active/);
     await expect(page.getByTestId('diff-card-daily')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.deploy-bar-sel')).toContainText('DAILY CHALLENGE');
+    await expect(page.locator('.deploy-bar-sel')).toContainText('데일리 챌린지');
     await expect(page.locator('[data-testid="daily-challenge-panel"]')).toHaveCount(0);
 
     await page.getByRole('button', { name: /^LEADERBOARD/ }).click();
@@ -1400,14 +1400,14 @@ test.describe('run telemetry model', () => {
     await page.getByTestId('dock-tab-challenges').click();
     await expect(page.getByTestId('weekly-ops-strip')).toBeVisible();
     await expect(page.getByTestId('weekly-mutation-card')).toBeVisible();
-    await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('Not crowned yet');
+    await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('아직 챔피언이 없습니다');
     await page.getByTestId('weekly-mutation-card').click();
     await expect(page.getByTestId('weekly-mutation-card')).toHaveClass(/active/);
     await expect(page.locator('.deploy-bar-sel')).toContainText('WEEKLY MUTATION');
 
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.getByTestId('weekly-ops-strip')).toBeVisible();
-    await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('Not crowned yet');
+    await expect(page.getByTestId('weekly-gauntlet-card')).toContainText('아직 챔피언이 없습니다');
   });
 
   test('weekly mutation starts as a wave-one weekly protocol', async ({ page }) => {
@@ -1453,7 +1453,7 @@ test.describe('run telemetry model', () => {
       await expect(page.getByTestId('gauntlet-protocol-card')).toBeVisible({ timeout: 15_000 });
       await expect(page.getByTestId('gauntlet-protocol-card')).toHaveAttribute('aria-disabled', 'false');
       await page.getByTestId('gauntlet-protocol-card').click();
-      await expect(page.locator('.deploy-bar-sel')).toContainText('GAUNTLET PROTOCOL');
+      await expect(page.locator('.deploy-bar-sel')).toContainText('건틀릿 프로토콜');
       await page.getByTestId('deploy-button').click();
       await expect(page.getByTestId('game-root')).toBeVisible();
       await acknowledgeBriefing(page);

@@ -30,7 +30,7 @@ test.describe('production bundle', () => {
     await page.goto('/');
     await expect(page.getByTestId('deploy-button')).toBeVisible({ timeout: 15_000 });
     const tagInfo = await page.evaluate(async () => {
-      const res = await fetch('/build-tag.json', { cache: 'no-store' });
+      const res = await fetch('/neon-vector-defense/build-tag.json', { cache: 'no-store' });
       return res.ok ? await res.json() as { tag?: string } : null;
     });
     expect(typeof tagInfo?.tag).toBe('string');

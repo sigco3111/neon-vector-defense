@@ -311,7 +311,7 @@ async function finishAsVictory(page: Page) {
     game.runStats.abilitiesCast = 0;
     game.finishRun(true, 'victory');
   });
-  await expect(page.getByRole('heading', { name: 'SECTOR SECURED' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '섹터 확보' })).toBeVisible();
 }
 
 async function finishAsDefeat(page: Page) {
@@ -331,7 +331,7 @@ async function finishAsDefeat(page: Page) {
     game.runStats.abilitiesCast = 0;
     game.finishRun(false, 'gameover');
   });
-  await expect(page.getByRole('heading', { name: 'GRID OFFLINE' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '그리드 오프라인' })).toBeVisible();
 }
 
 test.describe('QA regression real-flow audit', () => {
@@ -461,7 +461,7 @@ test.describe('QA regression real-flow audit', () => {
 
     await page.getByRole('button', { name: /RETRY SECTOR/ }).click();
     await expect(page.getByTestId('game-canvas')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'GRID OFFLINE' })).toBeHidden();
+    await expect(page.getByRole('heading', { name: '그리드 오프라인' })).toBeHidden();
     await expect.poll(() => page.evaluate(() => {
       const game = (window as unknown as { game: any }).game;
       return { phase: game.phase, wave: game.wave, lives: game.lives };
