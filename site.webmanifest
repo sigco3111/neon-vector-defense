@@ -1,0 +1,42 @@
+{
+  "name": "Lantern 7",
+  "short_name": "Lantern 7",
+  "description": "A neon sci-fi tower defense game with deep upgrades, escalating protocols, and global leaderboards.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#05070f",
+  "theme_color": "#070a14",
+  "categories": ["games", "strategy"],
+  "shortcuts": [
+    {
+      "name": "Deploy",
+      "short_name": "Deploy",
+      "description": "Open Lantern 7 at the sector deployment console.",
+      "url": "/"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
