@@ -1,5 +1,9 @@
 # 랜턴 7 (Lantern 7) — 한글화 데모
 
+<p align="center">
+  <img src="public/og-image.jpg" alt="랜턴 7 (Lantern 7) — 한글로 즐기는 SF 타워 디펜스" width="900" />
+</p>
+
 [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub%20Pages-222222?style=for-the-badge&logo=githubpages&logoColor=white)](https://sigco3111.github.io/neon-vector-defense/) [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![React](https://img.shields.io/badge/React-19-20232a?style=flat-square&logo=react)](https://react.dev/) [![Vite](https://img.shields.io/badge/Vite-8-646cff?style=flat-square&logo=vite&logoColor=white)](https://vite.dev/)
 
 > 원작자 [Calculator5329](https://github.com/Calculator5329/neon-vector-defense)의 React + TypeScript + Canvas 기반 SF 타워 디펜스 게임을 한국어로 번역·배포한 데모입니다. 게임 내 표시 텍스트(메뉴, HUD, 모달, 리더보드, 데이터, 안내문 등)를 한글로 전환했고, 식별자와 게임 시스템 로직은 원본 그대로 유지합니다.
@@ -7,6 +11,12 @@
 > **라이브 데모 : https://sigco3111.github.io/neon-vector-defense/**
 
 ---
+
+<p align="center">
+  <img src="public/art/sector-orbital.webp" alt="섹터: 궤도 (Orbital)" width="380" />
+  &nbsp;&nbsp;
+  <img src="public/art/briefing.webp" alt="작전 브리핑" width="380" />
+</p>
 
 ## 🌌 게임 소개
 
